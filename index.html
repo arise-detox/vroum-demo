@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; connect-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.basemaps.cartocdn.com; font-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'self' https://router.project-osrm.org">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -12,13 +12,18 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <title>Vroum Démo</title>
 <style>
+@font-face{font-family:"Inter";src:url(fonts/Inter-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Inter";src:url(fonts/Inter-SemiBold.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Inter";src:url(fonts/Inter-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Inter";src:url(fonts/Inter-ExtraBold.woff2) format("woff2");font-weight:800;font-display:swap}
 :root{--bg:#f6f6f6;--card:#fff;--text:#000;--muted:#6b6b6b;--line:#e4e4e4;--brand:#000;--on:#fff;--brand2:#f59e0b;--ok:#16a34a;--bad:#dc2626;
---land:#ececec;--road:#fff;--major:#fafafa;--park:#dfe7df;--water:#d3dde6;--shadow:0 -6px 24px rgba(0,0,0,.14);
---font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}
+--land:#ececec;--shadow:0 -6px 24px rgba(0,0,0,.14);
+--font:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#000;--card:#121212;--text:#fff;--muted:#a3a3a3;--line:#2b2b2b;--brand:#fff;--on:#000;--brand2:#fbbf24;--ok:#4ade80;--bad:#f87171;
---land:#151515;--road:#262626;--major:#303030;--park:#1b241b;--water:#1a2733;--shadow:0 -6px 24px rgba(0,0,0,.6)}}
+--land:#151515;--shadow:0 -6px 24px rgba(0,0,0,.6)}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:16px/1.4 var(--font);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
@@ -32,12 +37,20 @@ header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-
 .modes button:disabled{opacity:.5}
 .icon{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:50%;width:36px;height:36px;font-size:1rem}
 .mapwrap{position:relative;flex:1;min-height:180px;overflow:hidden}
-svg#map{width:100%;height:100%;display:block;background:var(--land)}
-.carb{fill:var(--brand);stroke:var(--bg);stroke-width:.45}.carw{fill:var(--on);opacity:.85}.land{fill:var(--land)}.park{fill:var(--park)}.water{fill:none;stroke:var(--water);stroke-width:4;stroke-linecap:round}
-.road{stroke:var(--road);stroke-width:1.1}.road.major{stroke:var(--major);stroke-width:1.9}
-.lbl{font:700 2.7px var(--font);fill:var(--text);paint-order:stroke;stroke:var(--land);stroke-width:.9px;stroke-linejoin:round}
-.pill{position:absolute;top:8px;left:10px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.speed{position:absolute;top:8px;right:10px;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
+#map{width:100%;height:100%;background:var(--land);font:inherit}
+.leaflet-container{font-family:var(--font)}
+.leaflet-control-attribution{font-size:9px;background:color-mix(in srgb,var(--card) 80%,transparent)!important;color:var(--muted)!important}
+.leaflet-control-attribution a{color:var(--muted)!important}
+.rt-case{stroke:var(--bg)}.rt-line{stroke:var(--brand)}
+.pin{width:18px;height:18px;border-radius:50%;background:var(--brand);border:3px solid var(--bg);box-shadow:0 1px 5px rgba(0,0,0,.45)}
+.pin.to{border-radius:4px;background:var(--brand2)}
+.carwrap{width:30px;height:30px;display:grid;place-items:center}
+.car2{width:16px;height:28px;border-radius:8px;background:var(--brand);border:2px solid var(--bg);box-shadow:0 1px 6px rgba(0,0,0,.55);position:relative}
+.car2::before{content:"";position:absolute;left:2px;right:2px;top:5px;height:7px;border-radius:3px;background:var(--on);opacity:.85}
+.leaflet-tooltip.lbl{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;font-weight:700;font-size:.74rem;padding:2px 7px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.leaflet-tooltip.lbl::before{display:none}
+.pill{position:absolute;top:8px;left:10px;z-index:1000;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.speed{position:absolute;top:8px;right:10px;z-index:1000;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
 .speed button{border:0;background:none;color:var(--muted);padding:3px 9px;border-radius:99px;font:inherit;font-size:.78rem;font-weight:700}
 .speed button[aria-pressed=true]{background:var(--brand);color:var(--on)}
 .sheet{background:var(--card);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding:16px 16px calc(env(safe-area-inset-bottom) + 14px);position:relative;z-index:2}
@@ -46,7 +59,7 @@ svg#map{width:100%;height:100%;display:block;background:var(--land)}
 .btn{display:block;width:100%;border:0;border-radius:10px;padding:14px;font:inherit;font-weight:700;font-size:1rem;background:var(--brand);color:var(--on);cursor:pointer}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
 .btn.warn{background:var(--brand2);color:#1c1300}
-.btn:disabled{opacity:.5}
+.btn:disabled{opacity:.45}
 .row{display:flex;gap:10px;margin-top:12px}.row>*{flex:1}
 .who{display:flex;align-items:center;gap:10px;font-weight:700}
 .avatar{width:40px;height:40px;border-radius:50%;background:var(--brand);color:var(--on);display:grid;place-items:center;font-weight:800}
@@ -74,7 +87,7 @@ select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);b
 .tips button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:99px;padding:6px 14px;font:inherit;font-weight:600}
 .tips button[aria-pressed=true]{background:var(--brand);color:var(--on);border-color:var(--brand)}
 .legal{margin:10px 0 0;text-align:center;color:var(--muted);font-size:.72rem}
-.overlay{position:fixed;inset:0;background:var(--bg);z-index:10;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px 20px;max-width:520px;margin:0 auto}
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:2000;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px 20px;max-width:520px;margin:0 auto}
 .overlay h2{margin:0 0 8px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -94,8 +107,8 @@ select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);b
     </div>
     <button class="icon" id="hist-btn" aria-label="Historique">📋</button>
   </header>
-  <div class="mapwrap">
-    <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Carte schématique fictive"></svg>
+  <div class="mapwrap" id="mapwrap">
+    <div id="map" role="region" aria-label="Plan de Paris"></div>
     <div class="pill" id="pill"></div>
     <div class="speed" id="speed" role="group" aria-label="Vitesse de simulation">
       <button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
@@ -113,9 +126,10 @@ select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);b
     <button class="btn ghost" id="reset-btn">Effacer l'historique</button>
   </div>
   <div class="row"><button class="btn" id="hist-close">Fermer</button></div>
-  <p class="legal">Vroum est une application de démonstration : les courses, passagers, chauffeurs et prix sont fictifs. Aucun paiement, aucune vraie réservation.</p>
+  <p class="legal">Vroum est une application de démonstration : les courses, passagers, chauffeurs et prix sont fictifs. Aucun paiement, aucune vraie réservation. Les trajets sont calculés sur de vraies routes (© contributeurs OpenStreetMap, OSRM).</p>
 </div>
 
+<script src="vendor/leaflet/leaflet.js"></script>
 <script>
 "use strict";
 // ============================================================
@@ -128,16 +142,21 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const round2 = n => Math.round(n * 100) / 100;
-const KM_PER_UNIT = 0.15;      // 1 unité de carte = 150 m
-const MS_PER_UNIT = 220;       // durée de la simulation (à vitesse 1×)
+const fmtKm = k => k.toFixed(1).replace(".", ",");
+const MS_PER_KM = 1400;        // durée de la simulation à vitesse 1× (un trajet de 10 km dure ~14 s)
 const PAYOUT = 0.75;           // part du chauffeur (fictive)
+const OSRM = "https://router.project-osrm.org/route/v1/driving/";
+const CENTER = [48.8566, 2.3522];
 
+// Lieux réels de Paris (coordonnées approximatives)
 const PLACES = [
-  { n: "Gare de Lyon", x: 70, y: 60 }, { n: "Place de la Bastille", x: 60, y: 50 }, { n: "Tour Eiffel", x: 20, y: 60 },
-  { n: "Opéra", x: 40, y: 30 }, { n: "Gare du Nord", x: 50, y: 10 }, { n: "Montmartre", x: 30, y: 10 },
-  { n: "Louvre", x: 40, y: 50 }, { n: "République", x: 60, y: 30 }, { n: "Notre-Dame", x: 50, y: 60 },
-  { n: "Montparnasse", x: 30, y: 80 }, { n: "Bercy", x: 80, y: 80 }, { n: "La Défense", x: 10, y: 20 },
-  { n: "Aéroport (démo)", x: 50, y: 90 }, { n: "Belleville", x: 80, y: 30 }
+  { n: "Gare de Lyon", lat: 48.8443, lon: 2.3744 }, { n: "Place de la Bastille", lat: 48.8530, lon: 2.3693 },
+  { n: "Tour Eiffel", lat: 48.8584, lon: 2.2945 }, { n: "Opéra Garnier", lat: 48.8720, lon: 2.3316 },
+  { n: "Gare du Nord", lat: 48.8809, lon: 2.3553 }, { n: "Sacré-Cœur", lat: 48.8867, lon: 2.3431 },
+  { n: "Musée du Louvre", lat: 48.8606, lon: 2.3376 }, { n: "République", lat: 48.8675, lon: 2.3637 },
+  { n: "Notre-Dame", lat: 48.8530, lon: 2.3499 }, { n: "Gare Montparnasse", lat: 48.8421, lon: 2.3219 },
+  { n: "Bercy", lat: 48.8387, lon: 2.3786 }, { n: "La Défense", lat: 48.8924, lon: 2.2360 },
+  { n: "Aéroport d'Orly", lat: 48.7262, lon: 2.3652 }, { n: "Belleville", lat: 48.8723, lon: 2.3774 }
 ];
 const FIRST = ["Camille", "Noah", "Inès", "Lucas", "Léa", "Hugo", "Sarah", "Yanis", "Manon", "Karim", "Emma", "Tom", "Jade", "Nora", "Enzo", "Lina"];
 const LAST = "ABCDEFGHJKLMNPRSTV".split("");
@@ -160,85 +179,148 @@ function loadState() {
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-// ---------- Géométrie & tarifs (fonctions pures) ----------
-function makeRoute(a, b, vFirst) {
-  const pts = [{ x: a.x, y: a.y }];
-  if (a.x !== b.x && a.y !== b.y) pts.push(vFirst ? { x: a.x, y: b.y } : { x: b.x, y: a.y });
-  pts.push({ x: b.x, y: b.y });
-  return pts;
+// ---------- Géographie & tarifs (fonctions pures) ----------
+const rad = d => d * Math.PI / 180;
+function hav(a, b) {                                   // distance à vol d'oiseau en km
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
 }
-const segLen = (p, q) => Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
-function pathLen(pts) { let l = 0; for (let i = 1; i < pts.length; i++) l += segLen(pts[i - 1], pts[i]); return l; }
-function posAt(pts, d) {            // position et cap après d unités parcourues
-  let rest = d;
-  for (let i = 1; i < pts.length; i++) {
-    const p = pts[i - 1], q = pts[i], L = segLen(p, q);
-    if (rest <= L || i === pts.length - 1) {
-      const t = L ? Math.min(1, rest / L) : 1;
-      return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t, ang: Math.atan2(q.x - p.x, -(q.y - p.y)) * 180 / Math.PI };
-    }
-    rest -= L;
-  }
-  return { x: pts[0].x, y: pts[0].y, ang: 0 };
+function bearing(p, q) {                               // cap en degrés entre deux points [lat, lon]
+  const y = Math.sin(rad(q[1] - p[1])) * Math.cos(rad(q[0]));
+  const x = Math.cos(rad(p[0])) * Math.sin(rad(q[0])) - Math.sin(rad(p[0])) * Math.cos(rad(q[0])) * Math.cos(rad(q[1] - p[1]));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
-const unitsToKm = u => round2(u * KM_PER_UNIT);
-const kmToMin = km => Math.max(2, Math.round(km / 26 * 60));     // ~26 km/h en ville
-function fareFor(km, mult = 1) { return round2(Math.max(5, (2 + km * 0.95 + kmToMin(km) * 0.3) * mult)); }
-const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-function randomCorner(near, minD, maxD) {         // intersection aléatoire à une certaine distance
-  for (let i = 0; i < 40; i++) {
-    const p = { x: rint(1, 9) * 10, y: rint(1, 9) * 10 };
-    const d = dist(p, near);
-    if (d >= minD && d <= maxD) return p;
-  }
-  return { x: Math.max(10, near.x - 30), y: near.y };
+function prepRoute(r) {                                // distances cumulées le long de l'itinéraire
+  if (r.cum) return r;
+  const cum = [0];
+  for (let i = 1; i < r.pts.length; i++) cum.push(cum[i - 1] + hav({ lat: r.pts[i - 1][0], lon: r.pts[i - 1][1] }, { lat: r.pts[i][0], lon: r.pts[i][1] }));
+  r.cum = cum; r.len = cum[cum.length - 1] || 0.001;
+  return r;
+}
+function posAtKm(r, d) {                               // position [lat, lon] et cap après d km
+  prepRoute(r);
+  if (d >= r.len) { const n = r.pts.length; return { p: r.pts[n - 1], ang: n > 1 ? bearing(r.pts[n - 2], r.pts[n - 1]) : 0 }; }
+  let lo = 1, hi = r.cum.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (r.cum[mid] < d) lo = mid + 1; else hi = mid; }
+  const i = lo, seg = r.cum[i] - r.cum[i - 1] || 1e-9, t = Math.min(1, Math.max(0, (d - r.cum[i - 1]) / seg));
+  const a = r.pts[i - 1], b = r.pts[i];
+  return { p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], ang: bearing(a, b) };
+}
+const kmToMin = km => Math.max(2, Math.round(km / 24 * 60));      // repli : ~24 km/h en ville
+function fareFor(km, min, mult = 1) { return round2(Math.max(5, (2 + km * 1.05 + min * 0.3) * mult)); }
+function randomNear(p, minKm, maxKm) {                // point à 1-3 km, pour la voiture du chauffeur
+  const d = rnd(minKm, maxKm), a = rnd(0, 2 * Math.PI);
+  return { lat: p.lat + d * Math.cos(a) / 111, lon: p.lon + d * Math.sin(a) / (111 * Math.cos(rad(p.lat))) };
 }
 function randomPlacePair() {
   const a = pick(PLACES);
-  let b; do { b = pick(PLACES); } while (b === a || dist(a, b) < 30);
+  let b; do { b = pick(PLACES); } while (b === a || hav(a, b) < 2);
   return [a, b];
 }
 const person = () => ({ name: `${pick(FIRST)} ${pick(LAST)}.`, rating: round2(rnd(4.5, 5)) });
 
-// ---------- Carte ----------
-function drawMap() {
-  let s = '<rect width="100" height="100" class="land"/>';
-  s += '<rect x="12" y="32" width="16" height="16" rx="2" class="park"/><rect x="62" y="66" width="22" height="12" rx="2" class="park"/><rect x="72" y="6" width="14" height="12" rx="2" class="park"/>';
-  s += '<path d="M0 68 C 22 58, 40 78, 64 64 S 100 54 100 58" class="water"/>';
-  for (let i = 0; i <= 100; i += 10) {
-    const c = i % 30 === 0 ? "road major" : "road";
-    s += `<line x1="${i}" y1="0" x2="${i}" y2="100" class="${c}"/><line x1="0" y1="${i}" x2="100" y2="${i}" class="${c}"/>`;
-  }
-  s += '<g id="route"></g><g id="pins"></g>';
-  s += '<g id="carg" visibility="hidden"><rect x="-1.4" y="-2.4" width="2.8" height="4.8" rx="1.1" class="carb"/><rect x="-.85" y="-1.5" width="1.7" height="1.3" rx=".35" class="carw"/></g>';
-  $("#map").innerHTML = s;
+// ---------- Itinéraires réels (OSRM) ----------
+const routeCache = new Map();
+function getRoute(a, b) {
+  const key = `${a.lat.toFixed(5)},${a.lon.toFixed(5)}>${b.lat.toFixed(5)},${b.lon.toFixed(5)}`;
+  if (routeCache.has(key)) return routeCache.get(key);
+  const p = (async () => {
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 7000);
+      const r = await fetch(`${OSRM}${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`, { signal: ctl.signal });
+      clearTimeout(t);
+      const rt = (await r.json()).routes?.[0];
+      if (!rt) throw new Error("no route");
+      return prepRoute({ pts: rt.geometry.coordinates.map(([lo, la]) => [la, lo]), km: round2(rt.distance / 1000), min: Math.max(2, Math.round(rt.duration / 60 * 1.25)), real: true });
+    } catch {                                           // hors-ligne ou serveur indisponible : trajet à vol d'oiseau
+      routeCache.delete(key);
+      const km = round2(hav(a, b) * 1.3);
+      return prepRoute({ pts: [[a.lat, a.lon], [b.lat, b.lon]], km, min: kmToMin(km), real: false });
+    }
+  })();
+  routeCache.set(key, p);
+  return p;
 }
-function setCar(p) { const c = $("#carg"); c.setAttribute("visibility", "visible"); c.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${p.ang})`); }
+
+// ---------- Carte (Leaflet + fond de plan) ----------
+let map = null, routeGroup, pinGroup, carMarker, tiles, lastFit = null;
+const TILES = {
+  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+};
+function initMap() {
+  if (typeof L === "undefined") { $("#map").innerHTML = '<p class="meta" style="padding:20px;text-align:center">Carte indisponible (hors-ligne). La simulation continue sans fond de plan.</p>'; return; }
+  map = L.map("map", { zoomControl: false, zoomSnap: 0.5, attributionControl: true }).setView(CENTER, 12);
+  map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+  routeGroup = L.layerGroup().addTo(map);
+  pinGroup = L.layerGroup().addTo(map);
+  const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const setTiles = () => {
+    if (tiles) map.removeLayer(tiles);
+    tiles = L.tileLayer(mq && mq.matches ? TILES.dark : TILES.light, { subdomains: "abcd", maxZoom: 19, detectRetina: true,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>' }).addTo(map);
+    tiles.bringToBack();
+  };
+  setTiles();
+  if (mq && mq.addEventListener) mq.addEventListener("change", setTiles);
+  if (window.ResizeObserver) new ResizeObserver(() => { map.invalidateSize(); if (lastFit) fit(lastFit, false); }).observe($("#mapwrap"));
+}
+function fit(pts, animate = true) {
+  if (!map || !pts || !pts.length) return;
+  lastFit = pts;
+  map.fitBounds(L.latLngBounds(pts), { padding: [34, 34], maxZoom: 16, animate });
+}
 function showRoute(pts) {
-  $("#route").innerHTML = pts ? `<polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" style="stroke:var(--bg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/><polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" style="stroke:var(--brand)" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>` : "";
+  if (!map) return;
+  routeGroup.clearLayers();
+  if (!pts) return;
+  L.polyline(pts, { className: "rt-case", weight: 10, opacity: .95, lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeGroup);
+  L.polyline(pts, { className: "rt-line", weight: 4, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeGroup);
+}
+function pinMarker(p, kind) {
+  return L.marker([p.lat, p.lon], { interactive: false, icon: L.divIcon({ className: "", html: `<div class="pin ${kind}"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] }) })
+    .bindTooltip(p.n, { permanent: true, direction: "right", offset: [12, 0], className: "lbl" });
 }
 function showPins(from, to) {
-  let s = "";
-  if (from) s += `<circle cx="${from.x}" cy="${from.y}" r="2.3" style="fill:var(--brand);stroke:var(--bg)" stroke-width=".6"/><circle cx="${from.x}" cy="${from.y}" r=".8" style="fill:var(--on)"/><text class="lbl" x="${from.x + 3}" y="${from.y - 2}">${from.n}</text>`;
-  if (to) s += `<rect x="${to.x - 2.1}" y="${to.y - 2.1}" width="4.2" height="4.2" rx=".8" style="fill:var(--brand2);stroke:var(--bg)" stroke-width=".6"/><text class="lbl" x="${to.x + 3}" y="${to.y - 2}">${to.n}</text>`;
-  $("#pins").innerHTML = s;
+  if (!map) return;
+  pinGroup.clearLayers();
+  if (from) pinMarker(from, "from").addTo(pinGroup);
+  if (to) pinMarker(to, "to").addTo(pinGroup);
 }
-function clearMapTrip() { showRoute(null); showPins(null, null); $("#carg").setAttribute("visibility", "hidden"); }
+function setCar(p, ang) {
+  if (!map) return;
+  if (!carMarker) {
+    carMarker = L.marker(p, { interactive: false, zIndexOffset: 1000, icon: L.divIcon({ className: "", html: '<div class="carwrap"><div class="car2"></div></div>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(map);
+  }
+  carMarker.setLatLng(p);
+  const el = carMarker.getElement();
+  if (el && el.firstChild) el.firstChild.style.transform = `rotate(${ang}deg)`;
+}
+function clearMapTrip() {
+  lastFit = null;
+  if (!map) return;
+  routeGroup.clearLayers(); pinGroup.clearLayers();
+  if (carMarker) { map.removeLayer(carMarker); carMarker = null; }
+  map.setView(CENTER, 12, { animate: true });
+}
 
-// ---------- Animation d'un déplacement ----------
+// ---------- Animation d'un déplacement le long d'un vrai itinéraire ----------
 let anim = null;
 function stopAnim() { if (anim) { anim.stop = true; cancelAnimationFrame(anim.raf); anim = null; } }
-function drive(pts, onTick, onDone) {
+function drive(route, onTick, onDone) {
   stopAnim();
-  const len = pathLen(pts), a = (anim = { stop: false, raf: 0 });
+  prepRoute(route);
+  const a = (anim = { stop: false, raf: 0 });
+  const kmPerMs = route.len / Math.max(3000, route.len * MS_PER_KM);      // au moins 3 s, même pour un trajet court
   let d = 0, last = performance.now();
-  setCar(posAt(pts, 0));
+  const s0 = posAtKm(route, 0); setCar(s0.p, s0.ang);
   const step = now => {
     if (a.stop) return;
-    d += Math.min(now - last, 100) * S.speed / MS_PER_UNIT;     // un onglet en arrière-plan ne fait pas « sauter » la voiture
+    d += Math.min(now - last, 100) * S.speed * kmPerMs;                   // un onglet en arrière-plan ne fait pas « sauter » la voiture
     last = now;
-    if (d >= len) { setCar(posAt(pts, len)); onTick && onTick(1); anim = null; onDone && onDone(); return; }
-    setCar(posAt(pts, d)); onTick && onTick(d / len);
+    if (d >= route.len) { const e = posAtKm(route, route.len); setCar(e.p, e.ang); onTick && onTick(1); anim = null; onDone && onDone(); return; }
+    const s = posAtKm(route, d); setCar(s.p, s.ang); onTick && onTick(d / route.len);
     a.raf = requestAnimationFrame(step);
   };
   a.raf = requestAnimationFrame(step);
@@ -285,7 +367,7 @@ function updateChrome() {
 // ============================================================
 //  MODE CHAUFFEUR
 // ============================================================
-let D = { phase: "off", req: null, ride: null, rating: 5, left: 0, cd: null, tripKm: 0 };
+let D = { phase: "off", req: null, ride: null, rating: 5, left: 0, cd: null, tok: 0 };
 
 function driverView() {
   const r = D.req, g = D.ride;
@@ -298,7 +380,7 @@ function driverView() {
       setSheet(`<div class="bar"><i id="cd" style="width:${D.left / 15 * 100}%"></i></div>
         <div class="who"><span class="avatar">${initials(r.p.name)}</span><span>${r.p.name} <span class="meta">★ ${r.p.rating}</span></span><span class="meta" style="margin-left:auto">${r.opt.n}</span></div>
         <div class="fare">${eur.format(r.payout)}</div>
-        <div class="meta">${r.km} km · ${r.min} min · prise en charge dans ${r.pickMin} min</div>
+        <div class="meta">${fmtKm(r.km)} km · ${r.min} min · prise en charge dans ${r.pickMin} min</div>
         <div class="route2"><b>${r.from.n}</b><br>→ <b>${r.to.n}</b></div>
         <div class="row"><button class="btn ghost" data-act="decline">Refuser</button><button class="btn" data-act="accept">Accepter</button></div>`); break;
     case "toPickup":
@@ -313,7 +395,7 @@ function driverView() {
       setSheet(`<h2>Destination atteinte</h2><p class="sub">${g.to.n}</p><button class="btn warn" data-act="end">Terminer la course</button>`); break;
     case "summary":
       setSheet(`<h2 style="text-align:center">Course terminée</h2><div class="fare" style="text-align:center">${eur.format(g.net)}</div>
-        <p class="sub" style="text-align:center">${eur.format(g.payoutBase)} de course${g.tip ? ` + ${eur.format(g.tip)} de pourboire` : ""} · ${g.km} km · ${g.min} min</p>
+        <p class="sub" style="text-align:center">${eur.format(g.payoutBase)} de course${g.tip ? ` + ${eur.format(g.tip)} de pourboire` : ""} · ${fmtKm(g.km)} km · ${g.min} min</p>
         <p class="meta" style="text-align:center;margin:0">Notez ${g.p.name}</p>${stars(D.rating)}
         <button class="btn" data-act="next">Continuer</button>`); break;
   }
@@ -323,13 +405,17 @@ function scheduleRequest() {
   clearTimers();
   later(newRequest, rint(2000, 5000) / S.speed);
 }
-function newRequest() {
+async function newRequest() {
+  const tok = ++D.tok;
   const [from, to] = randomPlacePair();
   const opt = pick([OPTIONS[0], OPTIONS[0], OPTIONS[1], OPTIONS[2]]);
-  const km = unitsToKm(dist(from, to)), fare = fareFor(km, opt.mult);
-  const carPos = randomCorner(from, 20, 60);
-  D.req = { from, to, opt, km, min: kmToMin(km), fare, payout: round2(fare * PAYOUT), p: person(), carPos, pickMin: kmToMin(unitsToKm(dist(carPos, from))) };
+  const carPos = randomNear(from, 1, 3.5);
+  const [trip, pickup] = await Promise.all([getRoute(from, to), getRoute(carPos, from)]);      // vraies distances et durées
+  if (tok !== D.tok || D.phase !== "waiting") return;
+  const fare = fareFor(trip.km, trip.min, opt.mult);
+  D.req = { from, to, opt, km: trip.km, min: trip.min, fare, payout: round2(fare * PAYOUT), p: person(), carPos, pickMin: pickup.min, trip, pickup };
   D.phase = "request"; D.left = 15;
+  showPins(from, to); showRoute(pickup.pts); fit([...pickup.pts, ...trip.pts]);
   beep(880, 130, true); driverView();
   D.cd = setInterval(() => {
     D.left--;
@@ -339,17 +425,15 @@ function newRequest() {
   }, 1000);
 }
 function declineRequest() {
-  clearInterval(D.cd); D.req = null; D.phase = "waiting"; driverView(); scheduleRequest();
+  clearInterval(D.cd); D.tok++; D.req = null; D.phase = "waiting"; clearMapTrip(); driverView(); scheduleRequest();
 }
 function acceptRequest() {
-  clearInterval(D.cd);
+  clearInterval(D.cd); D.tok++;
   const r = D.req; D.req = null; busy = true; updateChrome();
   D.ride = { ...r, tip: 0 };
   D.phase = "toPickup"; driverView();
-  showPins(r.from, null);
-  const pts = makeRoute(r.carPos, r.from, Math.random() < .5);
-  showRoute(pts);
-  drive(pts, f => {
+  showPins(r.from, null); showRoute(r.pickup.pts); fit(r.pickup.pts);
+  drive(r.pickup, f => {
     const pg = $("#pg"), eta = $("#eta");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `Arrivée dans ${Math.max(0, Math.ceil(r.pickMin * (1 - f)))} min`;
@@ -357,9 +441,8 @@ function acceptRequest() {
 }
 function startTrip() {
   const g = D.ride;
-  D.phase = "trip"; driverView(); showPins(g.from, g.to);
-  const pts = makeRoute(g.from, g.to, Math.random() < .5); showRoute(pts);
-  drive(pts, f => {
+  D.phase = "trip"; driverView(); showPins(g.from, g.to); showRoute(g.trip.pts); fit(g.trip.pts);
+  drive(g.trip, f => {
     const pg = $("#pg"), eta = $("#eta"), live = $("#live");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
@@ -383,7 +466,7 @@ function finishRide() {
 function driverAct(a) {
   switch (a) {
     case "go": D.phase = "waiting"; driverView(); scheduleRequest(); break;
-    case "stop": clearTimers(); clearInterval(D.cd); D.phase = "off"; driverView(); break;
+    case "stop": clearTimers(); clearInterval(D.cd); D.tok++; D.req = null; D.phase = "off"; clearMapTrip(); driverView(); break;
     case "decline": declineRequest(); break;
     case "accept": acceptRequest(); break;
     case "start": startTrip(); break;
@@ -395,25 +478,30 @@ function driverAct(a) {
 // ============================================================
 //  MODE PASSAGER
 // ============================================================
-let R = { phase: "form", from: PLACES[0], to: PLACES[3], opt: OPTIONS[0], ride: null, tip: 0, rating: 5 };
+let R = { phase: "form", from: PLACES[0], to: PLACES[3], opt: OPTIONS[0], ride: null, tip: 0, rating: 5, est: null, etas: { eco: 3, comfort: 4, van: 6 }, tok: 0 };
 
-function riderOptions() {
-  const km = unitsToKm(dist(R.from, R.to));
-  return OPTIONS.map(o => ({ ...o, price: fareFor(km, o.mult), eta: rint(2, 7) }));
+function riderEstimate() {                           // calcule l'itinéraire réel du trajet choisi
+  const tok = ++R.tok;
+  R.est = null; R.etas = { eco: rint(2, 5), comfort: rint(3, 7), van: rint(5, 9) };
+  if (R.from === R.to) { riderView(); return; }
+  showPins(R.from, R.to); riderView();
+  getRoute(R.from, R.to).then(r => {
+    if (tok !== R.tok || R.phase !== "form" || S.mode !== "rider") return;
+    R.est = r; showRoute(r.pts); fit(r.pts); riderView();
+  });
 }
 function riderView() {
   const g = R.ride;
   const placeOpts = sel => PLACES.map((p, i) => `<option value="${i}"${p === sel ? " selected" : ""}>${p.n}</option>`).join("");
   switch (R.phase) {
     case "form": {
-      const km = unitsToKm(dist(R.from, R.to));
-      const opts = (R._opts = R._opts || riderOptions());
+      const e = R.est;
       setSheet(`<h2>Où allez-vous ?</h2>
         <select id="sel-from" aria-label="Départ">${placeOpts(R.from)}</select>
         <select id="sel-to" aria-label="Destination">${placeOpts(R.to)}</select>
-        <p class="meta" style="margin:0">${km} km · environ ${kmToMin(km)} min</p>
-        <div class="opts">${opts.map(o => `<button class="opt" data-act="opt" data-id="${o.id}" aria-pressed="${o.id === R.opt.id}"><span style="font-size:1.5rem">${o.icon}</span><span>${o.n}<small>${o.seats} · ${o.eta} min</small></span><b>${eur.format(o.price)}</b></button>`).join("")}</div>
-        <button class="btn" data-act="order"${R.from === R.to ? " disabled" : ""}>Commander ${R.opt.n}</button>`);
+        <p class="meta" style="margin:0">${R.from === R.to ? "Choisissez deux lieux différents." : e ? `${fmtKm(e.km)} km · environ ${e.min} min${e.real ? "" : " (estimation)"}` : "Calcul de l'itinéraire…"}</p>
+        <div class="opts">${OPTIONS.map(o => `<button class="opt" data-act="opt" data-id="${o.id}" aria-pressed="${o.id === R.opt.id}"><span style="font-size:1.5rem">${o.icon}</span><span>${o.n}<small>${o.seats} · ${R.etas[o.id]} min</small></span><b>${e ? eur.format(fareFor(e.km, e.min, o.mult)) : "…"}</b></button>`).join("")}</div>
+        <button class="btn" data-act="order"${e ? "" : " disabled"}>Commander ${R.opt.n}</button>`);
       break;
     }
     case "searching":
@@ -428,34 +516,32 @@ function riderView() {
         <div class="prog"><i id="pg"></i></div><p class="meta" id="eta">${g.min} min restantes</p><div class="fare">${eur.format(g.price)}</div>`); break;
     case "summary":
       setSheet(`<h2 style="text-align:center">Vous êtes arrivé(e)</h2><div class="fare" style="text-align:center">${eur.format(round2(g.price + R.tip))}</div>
-        <p class="sub" style="text-align:center">${eur.format(g.price)} de course${R.tip ? ` + ${eur.format(R.tip)} de pourboire` : ""} · ${g.km} km</p>
+        <p class="sub" style="text-align:center">${eur.format(g.price)} de course${R.tip ? ` + ${eur.format(R.tip)} de pourboire` : ""} · ${fmtKm(g.km)} km</p>
         <p class="meta" style="text-align:center;margin:0">Notez ${g.d.name}</p>${stars(R.rating)}
         <div class="tips" role="group" aria-label="Pourboire">${[0, 1, 2, 5].map(t => `<button data-act="tip" data-v="${t}" aria-pressed="${R.tip === t}">${t ? eur.format(t) : "Aucun"}</button>`).join("")}</div>
         <button class="btn" data-act="done">Terminer</button>`); break;
   }
 }
-function riderOrder() {
+async function riderOrder() {
+  if (!R.est) return;
   busy = true; updateChrome();
   R.phase = "searching"; riderView(); clearTimers();
-  showPins(R.from, R.to);
-  later(() => {
-    const km = unitsToKm(dist(R.from, R.to)), opt = R.opt;
-    const carPos = randomCorner(R.from, 20, 60);
-    R.ride = { d: person(), car: pick(CARS), plate: `DM-${rint(100, 999)}-OK`, km, min: kmToMin(km), price: fareFor(km, opt.mult), carPos, pickMin: kmToMin(unitsToKm(dist(carPos, R.from))) };
-    R.phase = "coming"; beep(880, 130, true); riderView();
-    const pts = makeRoute(carPos, R.from, Math.random() < .5); showRoute(pts);
-    drive(pts, f => {
-      const pg = $("#pg"), eta = $("#eta");
-      if (pg) pg.style.width = (f * 100) + "%";
-      if (eta) eta.textContent = `Arrive dans ${Math.max(0, Math.ceil(R.ride.pickMin * (1 - f)))} min`;
-    }, () => { R.phase = "arrived"; beep(660, 160); riderView(); });
-  }, rint(2000, 3500) / S.speed);
+  const tok = ++R.tok, opt = R.opt, trip = R.est, carPos = randomNear(R.from, 1, 3.5);
+  const [pickup] = await Promise.all([getRoute(carPos, R.from), new Promise(res => later(res, rint(2000, 3500) / S.speed))]);
+  if (tok !== R.tok) return;
+  R.ride = { d: person(), car: pick(CARS), plate: `DM-${rint(100, 999)}-OK`, km: trip.km, min: trip.min, price: fareFor(trip.km, trip.min, opt.mult), trip, pickup, pickMin: pickup.min };
+  R.phase = "coming"; beep(880, 130, true); riderView();
+  showPins(R.from, R.to); showRoute(pickup.pts); fit(pickup.pts);
+  drive(pickup, f => {
+    const pg = $("#pg"), eta = $("#eta");
+    if (pg) pg.style.width = (f * 100) + "%";
+    if (eta) eta.textContent = `Arrive dans ${Math.max(0, Math.ceil(R.ride.pickMin * (1 - f)))} min`;
+  }, () => { R.phase = "arrived"; beep(660, 160); riderView(); });
 }
 function riderBoard() {
   const g = R.ride;
-  R.phase = "trip"; riderView(); showPins(R.from, R.to);
-  const pts = makeRoute(R.from, R.to, Math.random() < .5); showRoute(pts);
-  drive(pts, f => {
+  R.phase = "trip"; riderView(); showPins(R.from, R.to); showRoute(g.trip.pts); fit(g.trip.pts);
+  drive(g.trip, f => {
     const pg = $("#pg"), eta = $("#eta");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
@@ -465,13 +551,13 @@ function riderDone() {
   const g = R.ride;
   S.history.unshift({ id: Date.now(), role: "rider", date: dayKey(), from: R.from.n, to: R.to.n, km: g.km, min: g.min, net: round2(g.price + R.tip), tip: R.tip, party: g.d.name, rating: R.rating });
   S.history = S.history.slice(0, 200); save();
-  R.ride = null; R._opts = null; R.phase = "form"; busy = false; clearMapTrip(); updateChrome(); riderView();
+  R.ride = null; R.phase = "form"; busy = false; clearMapTrip(); updateChrome(); riderEstimate();
 }
 function riderAct(a, ds) {
   switch (a) {
     case "opt": R.opt = OPTIONS.find(o => o.id === ds.id) || R.opt; riderView(); break;
     case "order": riderOrder(); break;
-    case "cancel": clearTimers(); busy = false; R.phase = "form"; clearMapTrip(); updateChrome(); riderView(); break;
+    case "cancel": R.tok++; clearTimers(); stopAnim(); busy = false; R.phase = "form"; clearMapTrip(); updateChrome(); riderEstimate(); break;
     case "board": riderBoard(); break;
     case "tip": R.tip = +ds.v; riderView(); break;
     case "done": riderDone(); break;
@@ -491,16 +577,18 @@ sheet.addEventListener("click", e => {
 sheet.addEventListener("change", e => {
   if (S.mode !== "rider" || R.phase !== "form") return;
   if (e.target.id === "sel-from") R.from = PLACES[+e.target.value];
-  if (e.target.id === "sel-to") R.to = PLACES[+e.target.value];
-  R._opts = null; riderView();
+  else if (e.target.id === "sel-to") R.to = PLACES[+e.target.value];
+  else return;
+  riderEstimate();
 });
 
 document.querySelector(".modes").addEventListener("click", e => {
   const b = e.target.closest("button[data-m]");
   if (!b || b.disabled || b.dataset.m === S.mode) return;
   S.mode = b.dataset.m; save();
-  if (S.mode === "rider") { clearTimers(); clearInterval(D.cd); if (D.phase !== "off") D.phase = "off"; }
-  clearMapTrip(); updateChrome(); render();
+  clearTimers(); clearInterval(D.cd); D.tok++; D.req = null; if (D.phase !== "off") D.phase = "off";
+  R.tok++; clearMapTrip(); updateChrome(); render();
+  if (S.mode === "rider") riderEstimate();
 });
 $("#speed").addEventListener("click", e => {
   const b = e.target.closest("button[data-s]");
@@ -516,7 +604,7 @@ function renderHistory() {
   const sum = l => round2(l.reduce((s, h) => s + h.net, 0));
   $("#hist-stats").innerHTML = `<div class="card k"><small>Gains chauffeur (fictifs)</small><b>${eur.format(sum(dr))}</b><small>${dr.length} course${dr.length > 1 ? "s" : ""}</small></div>
     <div class="card k"><small>Dépenses passager (fictives)</small><b>${eur.format(sum(ri))}</b><small>${ri.length} course${ri.length > 1 ? "s" : ""}</small></div>`;
-  $("#hist-list").innerHTML = S.history.length ? S.history.slice(0, 60).map(h => `<div class="h"><span>${h.role === "driver" ? "🚗" : "🧍"} ${h.from} → ${h.to}</span><b>${eur.format(h.net)}</b><span class="meta">${h.date.split("-").reverse().join("/")} · ${h.km} km · ${h.min} min · ${h.party} · ${"★".repeat(h.rating)}</span></div>`).join("") : '<p class="meta">Aucune course pour l\'instant.</p>';
+  $("#hist-list").innerHTML = S.history.length ? S.history.slice(0, 60).map(h => `<div class="h"><span>${h.role === "driver" ? "🚗" : "🧍"} ${h.from} → ${h.to}</span><b>${eur.format(h.net)}</b><span class="meta">${h.date.split("-").reverse().join("/")} · ${fmtKm(h.km)} km · ${h.min} min · ${h.party} · ${"★".repeat(h.rating)}</span></div>`).join("") : '<p class="meta">Aucune course pour l\'instant.</p>';
   $("#sound-btn").textContent = S.sound ? "🔊 Son activé" : "🔇 Son coupé";
 }
 $("#hist-btn").onclick = () => { renderHistory(); $("#hist").hidden = false; };
@@ -525,8 +613,9 @@ $("#sound-btn").onclick = () => { S.sound = !S.sound; save(); renderHistory(); }
 $("#reset-btn").onclick = () => { if (confirm("Effacer tout l'historique de démonstration ?")) { S.history = []; save(); renderHistory(); updatePill(); } };
 
 // ---------- Démarrage ----------
-drawMap();
+initMap();
 render();
+if (S.mode === "rider") riderEstimate();
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>

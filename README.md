@@ -15,7 +15,15 @@ Nom, interface, passagers, chauffeurs, lieux et prix sont imaginaires. Elle n'es
 - Choix du départ et de la destination, trois catégories (Éco, Confort, Van) avec prix et délai estimés
 - Recherche d'un chauffeur, arrivée du véhicule, trajet animé, pourboire et note
 
-**Commun** : vitesse de simulation 1× / 2× / 4×, historique et totaux, sons et vibrations (désactivables), fonctionne hors-ligne, installable sur l'écran d'accueil de l'iPhone ou d'Android.
+**Commun** : vitesse de simulation 1× / 2× / 4×, historique et totaux, sons et vibrations (désactivables), fonctionne hors-ligne (hors fond de plan), installable sur l'écran d'accueil de l'iPhone ou d'Android.
+
+## Carte et itinéraires réels
+
+- Fond de plan de Paris (OpenStreetMap via CARTO, clair ou sombre selon ton téléphone) affiché avec [Leaflet](https://leafletjs.com) (hébergé dans `vendor/leaflet`).
+- Lieux réels (gares, monuments, aéroport d'Orly) et **itinéraires routiers réels** calculés par le service public [OSRM](https://project-osrm.org) : distances, durées et prix des courses en découlent, la voiture suit la vraie route.
+- Sans internet, les trajets sont estimés à vol d'oiseau et le fond de plan peut manquer ; l'application continue de fonctionner.
+- Police : [Inter](https://rsms.me/inter/) (licence SIL OFL, hébergée dans `fonts/`).
+- Données cartographiques © contributeurs OpenStreetMap, © CARTO. Les services de carte et d'itinéraire gratuits sont prévus pour un usage léger : ne pas s'en servir pour un service réel.
 
 ## Utilisation
 
