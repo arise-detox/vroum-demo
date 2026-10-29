@@ -1,5 +1,5 @@
 // Service worker minimal : l'app fonctionne hors-ligne après la première visite.
-const CACHE = "vroum-v1";
+const CACHE = "vroum-v2";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-180.png"];
 
 self.addEventListener("install", e => {

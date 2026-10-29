@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; connect-src 'self'">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Vroum Démo">
@@ -14,41 +14,42 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>Vroum Démo</title>
 <style>
-:root{--bg:#f3f6f6;--card:#fff;--text:#0f1f1e;--muted:#5b6b6a;--line:#dbe4e3;--brand:#0f766e;--brand2:#f59e0b;--ok:#16a34a;--bad:#dc2626;
---land:#eaf0ef;--road:#fff;--major:#f9fbfb;--park:#cfe8d5;--water:#bcd9ee;--shadow:0 -6px 24px rgba(0,0,0,.14)}
-@media (prefers-color-scheme:dark){:root{--bg:#0c1413;--card:#15201f;--text:#e6f1f0;--muted:#8fa3a1;--line:#243433;--brand:#2dd4bf;--brand2:#fbbf24;--ok:#4ade80;--bad:#f87171;
---land:#16221f;--road:#22302d;--major:#2a3a37;--park:#1c3a2b;--water:#1b3a52;--shadow:0 -6px 24px rgba(0,0,0,.5)}}
+:root{--bg:#f6f6f6;--card:#fff;--text:#000;--muted:#6b6b6b;--line:#e4e4e4;--brand:#000;--on:#fff;--brand2:#f59e0b;--ok:#16a34a;--bad:#dc2626;
+--land:#ececec;--road:#fff;--major:#fafafa;--park:#dfe7df;--water:#d3dde6;--shadow:0 -6px 24px rgba(0,0,0,.14);
+--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#121212;--text:#fff;--muted:#a3a3a3;--line:#2b2b2b;--brand:#fff;--on:#000;--brand2:#fbbf24;--ok:#4ade80;--bad:#f87171;
+--land:#151515;--road:#262626;--major:#303030;--park:#1b241b;--water:#1a2733;--shadow:0 -6px 24px rgba(0,0,0,.6)}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+body{background:var(--bg);color:var(--text);font:16px/1.4 var(--font);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 #app{display:flex;flex-direction:column;height:100dvh;max-width:520px;margin:0 auto;position:relative;background:var(--bg)}
 header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
-.brand{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:var(--brand)}
+.brand{font-weight:800;font-size:1.2rem;letter-spacing:-.03em;color:var(--text)}
 .demo{display:inline-block;margin-left:6px;font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:99px;background:var(--brand2);color:#1c1300;vertical-align:middle}
 .modes{margin-left:auto;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
 .modes button{border:0;background:none;color:var(--muted);padding:6px 12px;border-radius:99px;font:inherit;font-size:.85rem;font-weight:600}
-.modes button[aria-pressed=true]{background:var(--brand);color:#fff}
+.modes button[aria-pressed=true]{background:var(--brand);color:var(--on)}
 .modes button:disabled{opacity:.5}
 .icon{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:50%;width:36px;height:36px;font-size:1rem}
 .mapwrap{position:relative;flex:1;min-height:180px;overflow:hidden}
 svg#map{width:100%;height:100%;display:block;background:var(--land)}
-.land{fill:var(--land)}.park{fill:var(--park)}.water{fill:none;stroke:var(--water);stroke-width:4;stroke-linecap:round}
+.carb{fill:var(--brand);stroke:var(--bg);stroke-width:.45}.carw{fill:var(--on);opacity:.85}.land{fill:var(--land)}.park{fill:var(--park)}.water{fill:none;stroke:var(--water);stroke-width:4;stroke-linecap:round}
 .road{stroke:var(--road);stroke-width:1.1}.road.major{stroke:var(--major);stroke-width:1.9}
-.lbl{font:700 2.7px system-ui,sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--land);stroke-width:.9px;stroke-linejoin:round}
+.lbl{font:700 2.7px var(--font);fill:var(--text);paint-order:stroke;stroke:var(--land);stroke-width:.9px;stroke-linejoin:round}
 .pill{position:absolute;top:8px;left:10px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .speed{position:absolute;top:8px;right:10px;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
 .speed button{border:0;background:none;color:var(--muted);padding:3px 9px;border-radius:99px;font:inherit;font-size:.78rem;font-weight:700}
-.speed button[aria-pressed=true]{background:var(--brand);color:#fff}
+.speed button[aria-pressed=true]{background:var(--brand);color:var(--on)}
 .sheet{background:var(--card);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding:16px 16px calc(env(safe-area-inset-bottom) + 14px);position:relative;z-index:2}
-.sheet h2{margin:0 0 2px;font-size:1.2rem}
+.sheet h2{margin:0 0 2px;font-size:1.3rem;letter-spacing:-.02em}
 .sub{margin:0 0 12px;color:var(--muted);font-size:.9rem}
-.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font:inherit;font-weight:700;font-size:1rem;background:var(--brand);color:#fff;cursor:pointer}
+.btn{display:block;width:100%;border:0;border-radius:10px;padding:14px;font:inherit;font-weight:700;font-size:1rem;background:var(--brand);color:var(--on);cursor:pointer}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
 .btn.warn{background:var(--brand2);color:#1c1300}
 .btn:disabled{opacity:.5}
 .row{display:flex;gap:10px;margin-top:12px}.row>*{flex:1}
 .who{display:flex;align-items:center;gap:10px;font-weight:700}
-.avatar{width:40px;height:40px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--brand);color:var(--on);display:grid;place-items:center;font-weight:800}
 .fare{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;margin:6px 0 0}
 .meta{color:var(--muted);font-size:.88rem}
 .route2{margin:8px 0;padding:8px 10px;background:var(--bg);border-radius:10px;font-size:.92rem}
@@ -71,7 +72,7 @@ svg#map{width:100%;height:100%;display:block;background:var(--land)}
 select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;margin-bottom:8px}
 .tips{display:flex;gap:8px;justify-content:center;margin:6px 0}
 .tips button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:99px;padding:6px 14px;font:inherit;font-weight:600}
-.tips button[aria-pressed=true]{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tips button[aria-pressed=true]{background:var(--brand);color:var(--on);border-color:var(--brand)}
 .legal{margin:10px 0 0;text-align:center;color:var(--muted);font-size:.72rem}
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:10;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px 20px;max-width:520px;margin:0 auto}
 .overlay h2{margin:0 0 8px}
@@ -209,17 +210,17 @@ function drawMap() {
     s += `<line x1="${i}" y1="0" x2="${i}" y2="100" class="${c}"/><line x1="0" y1="${i}" x2="100" y2="${i}" class="${c}"/>`;
   }
   s += '<g id="route"></g><g id="pins"></g>';
-  s += '<g id="carg" visibility="hidden"><rect x="-1.4" y="-2.4" width="2.8" height="4.8" rx="1.1" fill="#0f766e" stroke="#fff" stroke-width=".45"/><rect x="-.85" y="-1.5" width="1.7" height="1.3" rx=".35" fill="#b6f3ea"/></g>';
+  s += '<g id="carg" visibility="hidden"><rect x="-1.4" y="-2.4" width="2.8" height="4.8" rx="1.1" class="carb"/><rect x="-.85" y="-1.5" width="1.7" height="1.3" rx=".35" class="carw"/></g>';
   $("#map").innerHTML = s;
 }
 function setCar(p) { const c = $("#carg"); c.setAttribute("visibility", "visible"); c.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${p.ang})`); }
 function showRoute(pts) {
-  $("#route").innerHTML = pts ? `<polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/><polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" stroke="#0f766e" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>` : "";
+  $("#route").innerHTML = pts ? `<polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" style="stroke:var(--bg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/><polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" style="stroke:var(--brand)" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>` : "";
 }
 function showPins(from, to) {
   let s = "";
-  if (from) s += `<circle cx="${from.x}" cy="${from.y}" r="2.3" fill="#0f766e" stroke="#fff" stroke-width=".6"/><circle cx="${from.x}" cy="${from.y}" r=".8" fill="#fff"/><text class="lbl" x="${from.x + 3}" y="${from.y - 2}">${from.n}</text>`;
-  if (to) s += `<rect x="${to.x - 2.1}" y="${to.y - 2.1}" width="4.2" height="4.2" rx=".8" fill="#f59e0b" stroke="#fff" stroke-width=".6"/><text class="lbl" x="${to.x + 3}" y="${to.y - 2}">${to.n}</text>`;
+  if (from) s += `<circle cx="${from.x}" cy="${from.y}" r="2.3" style="fill:var(--brand);stroke:var(--bg)" stroke-width=".6"/><circle cx="${from.x}" cy="${from.y}" r=".8" style="fill:var(--on)"/><text class="lbl" x="${from.x + 3}" y="${from.y - 2}">${from.n}</text>`;
+  if (to) s += `<rect x="${to.x - 2.1}" y="${to.y - 2.1}" width="4.2" height="4.2" rx=".8" style="fill:var(--brand2);stroke:var(--bg)" stroke-width=".6"/><text class="lbl" x="${to.x + 3}" y="${to.y - 2}">${to.n}</text>`;
   $("#pins").innerHTML = s;
 }
 function clearMapTrip() { showRoute(null); showPins(null, null); $("#carg").setAttribute("visibility", "hidden"); }
