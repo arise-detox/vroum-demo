@@ -15,7 +15,7 @@ Nom, interface, passagers, chauffeurs, lieux et prix sont imaginaires. Elle n'es
 - Choix du départ et de la destination, trois catégories (Éco, Confort, Van) avec prix et délai estimés
 - Recherche d'un chauffeur, arrivée du véhicule, trajet animé, pourboire et note
 
-**Commun** : vitesse de simulation 1× / 2× / 4×, historique et totaux, sons et vibrations (désactivables), fonctionne hors-ligne (hors fond de plan), installable sur l'écran d'accueil de l'iPhone ou d'Android.
+**Commun** : vitesse de simulation 1× / 2× / 4×, historique et totaux, sons de notification synthétisés (carillons) et vibrations (désactivables), fonctionne hors-ligne (hors fond de plan), installable sur l'écran d'accueil de l'iPhone ou d'Android.
 
 ## Carte et itinéraires réels
 

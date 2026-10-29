@@ -317,17 +317,52 @@ function drive(route, onTick, onDone) {
   a.raf = requestAnimationFrame(step);
 }
 
-// ---------- Son ----------
-let actx = null;
-function beep(freq = 740, ms = 140, twice = false) {
+// ---------- Sons (synthétisés, aucun fichier audio) ----------
+// Chaque son est une petite phrase de notes « cloche » (sinus + harmoniques) avec écho léger.
+let actx = null, master = null;
+function audio() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = actx.createDynamicsCompressor(), dly = actx.createDelay(), fb = actx.createGain(), wet = actx.createGain();
+    master = actx.createGain(); master.gain.value = .5;
+    dly.delayTime.value = .14; fb.gain.value = .28; wet.gain.value = .32;
+    master.connect(comp); master.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(comp);
+    comp.connect(actx.destination);
+  }
+  if (actx.state === "suspended") actx.resume();
+  return actx;
+}
+function bell(freq, t, dur, vol) {
+  const c = audio(), g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + .012);               // attaque courte
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);             // longue résonance
+  g.connect(master);
+  [[freq, "sine", 1], [freq * 2, "sine", .26], [freq * 3.01, "triangle", .08]].forEach(([f, type, m]) => {
+    const o = c.createOscillator(), og = c.createGain();
+    o.type = type; o.frequency.value = f; og.gain.value = m;
+    o.connect(og); og.connect(g); o.start(t); o.stop(t + dur + .05);
+  });
+}
+const E5 = 659.25, G5s = 830.61, B5 = 987.77, E6 = 1318.51;
+const SFX = {
+  request: { vib: [120, 80, 120, 80, 200], n: [[E5, 0, .5, .5], [G5s, .11, .5, .5], [B5, .22, .5, .5], [E6, .33, .8, .55], [E5, .8, .5, .45], [G5s, .91, .5, .45], [B5, 1.02, .5, .45], [E6, 1.13, .9, .5]] },
+  accept:  { vib: [60], n: [[1174.66, 0, .3, .5], [1567.98, .07, .45, .45]] },
+  found:   { vib: [100, 60, 100], n: [[783.99, 0, .35, .45], [987.77, .1, .35, .45], [1174.66, .2, .7, .5]] },
+  arrive:  { vib: [150], n: [[1046.5, 0, .5, .5], [783.99, .18, .9, .5]] },
+  done:    { vib: [80, 60, 80, 60, 200], n: [[523.25, 0, .5, .45], [659.25, .09, .5, .45], [783.99, .18, .5, .45], [1046.5, .27, 1.2, .55]] },
+  tick:    { vib: null, n: [[1500, 0, .07, .22]] }
+};
+function sfx(name) {
   if (!S.sound) return;
   try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const go = t0 => { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = freq; g.gain.value = .06; o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + ms / 1000); };
-    go(actx.currentTime); if (twice) go(actx.currentTime + ms / 1000 + .08);
-    if (navigator.vibrate) navigator.vibrate(twice ? [120, 80, 120] : 120);
+    const c = audio(), s = SFX[name], t0 = c.currentTime + .02;
+    s.n.forEach(([f, off, dur, vol]) => bell(f, t0 + off, dur, vol));
+    if (s.vib && navigator.vibrate) navigator.vibrate(s.vib);
   } catch {}
 }
+// iOS/Safari ne jouent un son qu'après un geste de l'utilisateur : on « débloque » l'audio dès le premier toucher.
+window.addEventListener("pointerdown", () => { if (S.sound) { try { audio(); } catch {} } }, { passive: true });
 
 // ---------- Interface commune ----------
 const sheet = $("#sheet");
@@ -407,9 +442,10 @@ async function newRequest() {
   D.req = { from, to, opt, km: trip.km, min: trip.min, fare, payout: round2(fare * PAYOUT), p: person(), carPos, pickMin: pickup.min, trip, pickup };
   D.phase = "request"; D.left = 15;
   showPins(from, to); showRoute(pickup.pts); fit([...pickup.pts, ...trip.pts]);
-  beep(880, 130, true); driverView();
+  sfx("request"); driverView();
   D.cd = setInterval(() => {
     D.left--;
+    if (D.left <= 3 && D.left > 0) sfx("tick");
     const el = $("#cd");
     if (el) el.style.width = (D.left / 15 * 100) + "%";
     if (D.left <= 0) { clearInterval(D.cd); declineRequest(); }
@@ -420,6 +456,7 @@ function declineRequest() {
 }
 function acceptRequest() {
   clearInterval(D.cd); D.tok++;
+  sfx("accept");
   const r = D.req; D.req = null; busy = true; updateChrome();
   D.ride = { ...r, tip: 0 };
   D.phase = "toPickup"; driverView();
@@ -428,7 +465,7 @@ function acceptRequest() {
     const pg = $("#pg"), eta = $("#eta");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `Arrivée dans ${Math.max(0, Math.ceil(r.pickMin * (1 - f)))} min`;
-  }, () => { D.phase = "atPickup"; beep(660, 160); driverView(); });
+  }, () => { D.phase = "atPickup"; sfx("arrive"); driverView(); });
 }
 function startTrip() {
   const g = D.ride;
@@ -438,13 +475,13 @@ function startTrip() {
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
     if (live) live.textContent = eur.format(round2(g.payout * f));
-  }, () => { D.phase = "atDest"; beep(660, 160); driverView(); });
+  }, () => { D.phase = "atDest"; sfx("arrive"); driverView(); });
 }
 function endTrip() {
   const g = D.ride;
   g.tip = Math.random() < .45 ? pick([1, 1, 2, 2, 3, 5]) : 0;
   g.payoutBase = g.payout; g.net = round2(g.payout + g.tip);
-  D.rating = 5; D.phase = "summary"; beep(990, 200, true); driverView();
+  D.rating = 5; D.phase = "summary"; sfx("done"); driverView();
 }
 function finishRide() {
   const g = D.ride;
@@ -521,13 +558,13 @@ async function riderOrder() {
   const [pickup] = await Promise.all([getRoute(carPos, R.from), new Promise(res => later(res, rint(2000, 3500) / S.speed))]);
   if (tok !== R.tok) return;
   R.ride = { d: person(), car: pick(CARS), plate: `DM-${rint(100, 999)}-OK`, km: trip.km, min: trip.min, price: fareFor(trip.km, trip.min, opt.mult), trip, pickup, pickMin: pickup.min };
-  R.phase = "coming"; beep(880, 130, true); riderView();
+  R.phase = "coming"; sfx("found"); riderView();
   showPins(R.from, R.to); showRoute(pickup.pts); fit(pickup.pts);
   drive(pickup, f => {
     const pg = $("#pg"), eta = $("#eta");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `Arrive dans ${Math.max(0, Math.ceil(R.ride.pickMin * (1 - f)))} min`;
-  }, () => { R.phase = "arrived"; beep(660, 160); riderView(); });
+  }, () => { R.phase = "arrived"; sfx("arrive"); riderView(); });
 }
 function riderBoard() {
   const g = R.ride;
@@ -536,7 +573,7 @@ function riderBoard() {
     const pg = $("#pg"), eta = $("#eta");
     if (pg) pg.style.width = (f * 100) + "%";
     if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
-  }, () => { R.tip = 0; R.rating = 5; R.phase = "summary"; beep(990, 200, true); riderView(); });
+  }, () => { R.tip = 0; R.rating = 5; R.phase = "summary"; sfx("done"); riderView(); });
 }
 function riderDone() {
   const g = R.ride;
