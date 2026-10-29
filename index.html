@@ -56,6 +56,10 @@ header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-
 .leaflet-tooltip.lbl::before{display:none}
 .pill{position:absolute;top:8px;left:10px;z-index:1000;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .speed{position:absolute;top:8px;right:10px;z-index:1000;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
+.speed[hidden]{display:none}
+.skip{position:absolute;left:10px;bottom:30px;z-index:1000;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);opacity:.5;font-size:.85rem;padding:0;display:grid;place-items:center}
+.skip:active,.skip:focus-visible{opacity:1}
+.skip[hidden]{display:none}
 .speed button{border:0;background:none;color:var(--muted);padding:3px 9px;border-radius:99px;font:inherit;font-size:.78rem;font-weight:700}
 .speed button[aria-pressed=true]{background:var(--brand);color:var(--on)}
 .sheet{background:var(--card);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding:16px 16px calc(env(safe-area-inset-bottom) + 14px);position:relative;z-index:2}
@@ -118,6 +122,7 @@ select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);b
     <div class="speed" id="speed" role="group" aria-label="Vitesse de simulation">
       <button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
     </div>
+    <button class="skip" id="skip" hidden aria-label="Simuler : accélérer l'étape en cours" title="Simuler : accélérer l'étape en cours">⏩</button>
   </div>
   <section class="sheet" id="sheet" aria-live="polite"></section>
 </div>
@@ -128,6 +133,7 @@ select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);b
   <div class="card" id="hist-list"></div>
   <div class="row">
     <button class="btn ghost" id="sound-btn"></button>
+    <button class="btn ghost" id="real-btn"></button>
     <button class="btn ghost" id="reset-btn">Effacer l'historique</button>
   </div>
   <div class="row"><button class="btn" id="hist-close">Fermer</button></div>
@@ -182,9 +188,9 @@ let S = loadState();
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.history)) return { history: s.history, speed: [1, 2, 4].includes(s.speed) ? s.speed : 1, mode: s.mode === "rider" ? "rider" : "driver", sound: s.sound !== false, geo: s.geo !== false };
+    if (s && Array.isArray(s.history)) return { history: s.history, speed: [1, 2, 4].includes(s.speed) ? s.speed : 1, mode: s.mode === "rider" ? "rider" : "driver", sound: s.sound !== false, geo: s.geo !== false, real: s.real !== false };
   } catch {}
-  return { history: [], speed: 1, mode: "driver", sound: true, geo: true };
+  return { history: [], speed: 1, mode: "driver", sound: true, geo: true, real: true };
 }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -352,12 +358,15 @@ function drive(route, onTick, onDone) {
   stopAnim();
   prepRoute(route);
   const a = (anim = { stop: false, raf: 0 });
-  const kmPerMs = route.len / Math.max(3000, route.len * MS_PER_KM);      // au moins 3 s, même pour un trajet court
+  // Temps réel : la durée est celle de l'itinéraire (minutes réelles). Sinon : simulation compressée.
+  const kmPerMs = S.real ? route.len / (Math.max(1, route.min) * 60000) : route.len / Math.max(3000, route.len * MS_PER_KM);
   let d = 0, last = performance.now();
   const s0 = posAtKm(route, 0); setCar(s0.p, s0.ang);
   const step = now => {
     if (a.stop) return;
-    d += Math.min(now - last, 100) * S.speed * kmPerMs;                   // un onglet en arrière-plan ne fait pas « sauter » la voiture
+    const dt = S.real ? now - last : Math.min(now - last, 100);           // temps réel : l'horloge fait foi (écran verrouillé…)
+    if (a.skip && !a.skipRate) a.skipRate = Math.max(route.len - d, 0.001) / 2500;     // bouton « simuler » : le reste en ~2,5 s
+    d += dt * (a.skipRate || (S.real ? 1 : S.speed) * kmPerMs);
     last = now;
     if (d >= route.len) { const e = posAtKm(route, route.len); setCar(e.p, e.ang); onTick && onTick(1); anim = null; onDone && onDone(); return; }
     const s = posAtKm(route, d); setCar(s.p, s.ang); onTick && onTick(d / route.len);
@@ -420,7 +429,14 @@ const stars = cur => `<div class="stars" role="group" aria-label="Note">${[1, 2,
 const initials = n => n.split(" ")[0].slice(0, 1);
 let timers = [];
 const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
-const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; skipCb = null; };
+let skipCb = null;      // étape d'attente que le bouton discret peut avancer
+function skipNow() { if (anim) anim.skip = true; else if (skipCb) { const f = skipCb; skipCb = null; f(); } }
+function updateSkip() {
+  const el = $("#skip"); if (!el) return;
+  el.hidden = !(S.real && (anim || skipCb));
+  $("#speed").hidden = !!S.real;
+}
 let busy = false;       // une course est en cours : on ne change pas de mode
 
 function updatePill() {
@@ -484,7 +500,9 @@ function driverView() {
 
 function scheduleRequest() {
   clearTimers();
-  later(newRequest, rint(2000, 5000) / S.speed);
+  const go = () => { skipCb = null; newRequest(); };
+  if (S.real) { later(go, rint(15000, 40000)); skipCb = () => { clearTimers(); go(); }; }
+  else later(go, rint(2000, 5000) / S.speed);
 }
 async function newRequest() {
   const tok = ++D.tok;
@@ -638,7 +656,8 @@ async function riderOrder() {
   busy = true; updateChrome();
   R.phase = "searching"; riderView(); clearTimers();
   const tok = ++R.tok, opt = R.opt, trip = R.est, carPos = randomNear(R.from, 1, 3.5);
-  const [pickup] = await Promise.all([getRoute(carPos, R.from), new Promise(res => later(res, rint(2000, 3500) / S.speed))]);
+  const [pickup] = await Promise.all([getRoute(carPos, R.from), new Promise(res => { if (S.real) { later(res, rint(8000, 14000)); skipCb = res; } else later(res, rint(2000, 3500) / S.speed); })]);
+  skipCb = null;
   if (tok !== R.tok) return;
   R.ride = { d: person(), car: pick(CARS), plate: `DM-${rint(100, 999)}-OK`, km: trip.km, min: trip.min, price: fareFor(trip.km, trip.min, opt.mult), trip, pickup, pickMin: pickup.min };
   R.phase = "coming"; sfx("found"); riderView();
@@ -723,10 +742,14 @@ function renderHistory() {
   $("#hist-stats").innerHTML = `<div class="card k"><small>Gains chauffeur (fictifs)</small><b>${eur.format(sum(dr))}</b><small>${dr.length} course${dr.length > 1 ? "s" : ""}</small></div>
     <div class="card k"><small>Dépenses passager (fictives)</small><b>${eur.format(sum(ri))}</b><small>${ri.length} course${ri.length > 1 ? "s" : ""}</small></div>`;
   $("#hist-list").innerHTML = S.history.length ? S.history.slice(0, 60).map(h => `<div class="h"><span>${h.role === "driver" ? "🚗" : "🧍"} ${h.from} → ${h.to}</span><b>${eur.format(h.net)}</b><span class="meta">${h.date.split("-").reverse().join("/")} · ${fmtKm(h.km)} km · ${h.min} min · ${h.party} · ${"★".repeat(h.rating)}</span></div>`).join("") : '<p class="meta">Aucune course pour l\'instant.</p>';
+  $("#real-btn").textContent = S.real ? "⏱ Temps réel (touchez pour accélérer)" : "⚡ Simulation rapide (touchez pour temps réel)";
   $("#sound-btn").textContent = S.sound ? "🔊 Son activé" : "🔇 Son coupé";
 }
 $("#hist-btn").onclick = () => { renderHistory(); $("#hist").hidden = false; };
 $("#hist-close").onclick = () => { $("#hist").hidden = true; updatePill(); };
+$("#real-btn").onclick = () => { S.real = !S.real; save(); renderHistory(); updateSkip(); };
+$("#skip").onclick = skipNow;
+setInterval(updateSkip, 400);
 $("#sound-btn").onclick = () => { S.sound = !S.sound; save(); renderHistory(); };
 $("#reset-btn").onclick = () => { if (confirm("Effacer tout l'historique de démonstration ?")) { S.history = []; save(); renderHistory(); updatePill(); } };
 
