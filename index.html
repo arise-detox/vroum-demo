@@ -46,6 +46,9 @@ header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-
 .rt-case{stroke:var(--bg)}.rt-line{stroke:var(--brand)}
 .pin{width:18px;height:18px;border-radius:50%;background:var(--brand);border:3px solid var(--bg);box-shadow:0 1px 5px rgba(0,0,0,.45)}
 .pin.to{border-radius:4px;background:var(--brand2)}
+.me{width:16px;height:16px;border-radius:50%;background:#2f80ed;border:3px solid #fff;box-shadow:0 0 0 0 rgba(47,128,237,.55);animation:mepulse 2s infinite}
+@keyframes mepulse{70%{box-shadow:0 0 0 16px rgba(47,128,237,0)}100%{box-shadow:0 0 0 0 rgba(47,128,237,0)}}
+@media (prefers-reduced-motion:reduce){.me{animation:none}}
 .carwrap{width:30px;height:30px;display:grid;place-items:center}
 .car2{width:16px;height:28px;border-radius:8px;background:var(--brand);border:2px solid var(--bg);box-shadow:0 1px 6px rgba(0,0,0,.55);position:relative}
 .car2::before{content:"";position:absolute;left:2px;right:2px;top:5px;height:7px;border-radius:3px;background:var(--on);opacity:.85}
@@ -169,14 +172,19 @@ const OPTIONS = [
   { id: "van", n: "Van", mult: 1.7, seats: "jusqu'à 6 places", icon: "🚐" }
 ];
 
+// ---------- Position réelle (facultative, jamais enregistrée) ----------
+const ME = { n: "Ma position", lat: 0, lon: 0 };
+const GEO = { pos: false, watch: null, err: "", busy: false, heading: 0 };
+let meMarker = null, NEAR = [];
+
 // ---------- Persistance ----------
 let S = loadState();
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.history)) return { history: s.history, speed: [1, 2, 4].includes(s.speed) ? s.speed : 1, mode: s.mode === "rider" ? "rider" : "driver", sound: s.sound !== false };
+    if (s && Array.isArray(s.history)) return { history: s.history, speed: [1, 2, 4].includes(s.speed) ? s.speed : 1, mode: s.mode === "rider" ? "rider" : "driver", sound: s.sound !== false, geo: s.geo !== false };
   } catch {}
-  return { history: [], speed: 1, mode: "driver", sound: true };
+  return { history: [], speed: 1, mode: "driver", sound: true, geo: true };
 }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -215,6 +223,11 @@ function randomNear(p, minKm, maxKm) {                // point à 1-3 km, pour l
   const d = rnd(minKm, maxKm), a = rnd(0, 2 * Math.PI);
   return { lat: p.lat + d * Math.cos(a) / 111, lon: p.lon + d * Math.sin(a) / (111 * Math.cos(rad(p.lat))) };
 }
+function offset(p, km, deg) {                       // point situé à km kilomètres de p, dans la direction deg
+  const a = rad(deg);
+  return { lat: p.lat + km * Math.cos(a) / 111, lon: p.lon + km * Math.sin(a) / (111 * Math.cos(rad(p.lat))) };
+}
+const useMe = () => S.geo && GEO.pos;
 function randomPlacePair() {
   const a = pick(PLACES);
   let b; do { b = pick(PLACES); } while (b === a || hav(a, b) < 2);
@@ -232,9 +245,10 @@ function getRoute(a, b) {
       const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 7000);
       const r = await fetch(`${OSRM}${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`, { signal: ctl.signal });
       clearTimeout(t);
-      const rt = (await r.json()).routes?.[0];
+      const j = await r.json(), rt = j.routes?.[0];
       if (!rt) throw new Error("no route");
-      return prepRoute({ pts: rt.geometry.coordinates.map(([lo, la]) => [la, lo]), km: round2(rt.distance / 1000), min: Math.max(2, Math.round(rt.duration / 60 * 1.25)), real: true });
+      const wn = n => (typeof n === "string" && n.trim()) || "";
+      return prepRoute({ pts: rt.geometry.coordinates.map(([lo, la]) => [la, lo]), km: round2(rt.distance / 1000), min: Math.max(2, Math.round(rt.duration / 60 * 1.25)), real: true, toName: wn(j.waypoints?.[1]?.name) });
     } catch {                                           // hors-ligne ou serveur indisponible : trajet à vol d'oiseau
       routeCache.delete(key);
       const km = round2(hav(a, b) * 1.3);
@@ -293,8 +307,43 @@ function clearMapTrip() {
   if (!map) return;
   routeGroup.clearLayers(); pinGroup.clearLayers();
   if (carMarker) { map.removeLayer(carMarker); carMarker = null; }
-  map.setView(CENTER, 12, { animate: true });
+  if (useMe()) map.setView([ME.lat, ME.lon], 15, { animate: true }); else map.setView(CENTER, 12, { animate: true });
 }
+
+function drawMe() {
+  if (!map) return;
+  if (!S.geo || !GEO.pos) { if (meMarker) { map.removeLayer(meMarker); meMarker = null; } return; }
+  const ll = [ME.lat, ME.lon];
+  if (!meMarker) meMarker = L.marker(ll, { interactive: false, zIndexOffset: 500, icon: L.divIcon({ className: "", html: '<div class="me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(map);
+  else meMarker.setLatLng(ll);
+}
+function setMe(c) {
+  ME.lat = c.latitude; ME.lon = c.longitude; GEO.pos = true;
+  if (typeof c.heading === "number" && !isNaN(c.heading)) GEO.heading = c.heading;
+  drawMe();
+}
+function stopWatch() { if (GEO.watch != null && navigator.geolocation) navigator.geolocation.clearWatch(GEO.watch); GEO.watch = null; }
+// Demande la position une fois ; live = la suit ensuite en direct (chauffeur en attente de client).
+function locate(cb, live) {
+  if (!navigator.geolocation) { GEO.err = "Géolocalisation indisponible sur cet appareil. Lieux de Paris utilisés."; cb && cb(false); return; }
+  navigator.geolocation.getCurrentPosition(p => {
+    GEO.err = ""; setMe(p.coords);
+    if (map) map.setView([ME.lat, ME.lon], 15, { animate: true });
+    if (live && GEO.watch == null) GEO.watch = navigator.geolocation.watchPosition(w => {
+      setMe(w.coords);
+      if (S.mode === "driver" && D.phase === "waiting") { setCar([ME.lat, ME.lon], GEO.heading); if (map) map.panTo([ME.lat, ME.lon]); }
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+    cb && cb(true);
+  }, e => {
+    GEO.err = e && e.code === 1 ? "Position refusée : autorisez-la dans les réglages du navigateur. Lieux de Paris utilisés." : "Position introuvable. Lieux de Paris utilisés.";
+    cb && cb(false);
+  }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 });
+}
+function buildNear() {                                 // quelques destinations autour de la position
+  NEAR = [[1.5, 35], [3, 140], [5, 250], [8, 320]].map(([km, deg]) => ({ n: `Destination · ~${km} km`, km, ...offset(ME, km, deg) }));
+  NEAR.forEach(p => getRoute(ME, p).then(r => { if (r.toName) { p.n = `${r.toName} · ~${p.km} km`; if (S.mode === "rider" && R.phase === "form") riderView(); } }));
+}
+const plist = () => useMe() ? [ME, ...NEAR, ...(hav(ME, { lat: CENTER[0], lon: CENTER[1] }) < 40 ? PLACES : [])] : PLACES;
 
 // ---------- Animation d'un déplacement le long d'un vrai itinéraire ----------
 let anim = null;
@@ -399,9 +448,15 @@ function driverView() {
   const r = D.req, g = D.ride;
   switch (D.phase) {
     case "off":
-      setSheet(`<h2>Vous êtes hors ligne</h2><p class="sub">Passez en ligne pour recevoir des courses fictives.</p><button class="btn" data-act="go">Se connecter</button>`); break;
+      setSheet(`<h2>Vous êtes hors ligne</h2><p class="sub">Passez en ligne pour recevoir des courses fictives${S.geo ? " autour de votre position réelle" : ""}.</p>
+        <button class="btn ghost" data-act="geo" aria-pressed="${S.geo}">📍 Ma position réelle : ${S.geo ? "activée" : "désactivée"}</button>
+        ${GEO.err ? `<p class="meta" style="margin:0">${GEO.err}</p>` : S.geo ? '<p class="meta" style="margin:0">Votre position reste sur l\'appareil (jamais enregistrée) ; seuls les points des trajets sont envoyés au service d\'itinéraires public.</p>' : ""}
+        <button class="btn" data-act="go">Se connecter</button>`); break;
+    case "locating":
+      setSheet(`<div class="radar"></div><h2 style="text-align:center">Localisation…</h2><p class="sub" style="text-align:center">Autorisez l'accès à votre position.</p>`); break;
     case "waiting":
-      setSheet(`<div class="radar"></div><h2 style="text-align:center">Recherche de courses…</h2><p class="sub" style="text-align:center">Vous êtes en ligne, une demande va arriver.</p><button class="btn ghost" data-act="stop">Se déconnecter</button>`); break;
+      if (useMe()) setCar([ME.lat, ME.lon], GEO.heading);
+      setSheet(`<div class="radar"></div><h2 style="text-align:center">En attente d'un client…</h2><p class="sub" style="text-align:center">${useMe() ? "📍 Position en direct · une demande va arriver près de vous." : "Vous êtes en ligne, une demande va arriver."}</p><button class="btn ghost" data-act="stop">Se déconnecter</button>`); break;
     case "request":
       setSheet(`<div class="bar"><i id="cd" style="width:${D.left / 15 * 100}%"></i></div>
         <div class="who"><span class="avatar">${initials(r.p.name)}</span><span>${r.p.name} <span class="meta">★ ${r.p.rating}</span></span><span class="meta" style="margin-left:auto">${r.opt.n}</span></div>
@@ -433,10 +488,24 @@ function scheduleRequest() {
 }
 async function newRequest() {
   const tok = ++D.tok;
-  const [from, to] = randomPlacePair();
   const opt = pick([OPTIONS[0], OPTIONS[0], OPTIONS[1], OPTIONS[2]]);
-  const carPos = randomNear(from, 1, 3.5);
-  const [trip, pickup] = await Promise.all([getRoute(from, to), getRoute(carPos, from)]);      // vraies distances et durées
+  let from, to, carPos, trip, pickup;
+  if (useMe()) {                                       // client fictif près de la vraie position, voiture au point où vous êtes
+    carPos = { lat: ME.lat, lon: ME.lon };
+    for (let k = 0; k < 3; k++) {
+      const f = offset(ME, rnd(.4, 1.8), rnd(0, 360)), t = offset(f, rnd(2.5, 9), rnd(0, 360));
+      [pickup, trip] = await Promise.all([getRoute(carPos, f), getRoute(f, t)]);
+      if (tok !== D.tok || D.phase !== "waiting") return;
+      const fe = pickup.pts[pickup.pts.length - 1], te = trip.pts[trip.pts.length - 1];     // points calés sur la route
+      from = { n: pickup.toName || "Point de prise en charge", lat: fe[0], lon: fe[1] };
+      to = { n: trip.toName || "Destination", lat: te[0], lon: te[1] };
+      if (trip.km <= 30 && pickup.km <= 8) break;
+    }
+  } else {
+    [from, to] = randomPlacePair();
+    carPos = randomNear(from, 1, 3.5);
+    [trip, pickup] = await Promise.all([getRoute(from, to), getRoute(carPos, from)]);      // vraies distances et durées
+  }
   if (tok !== D.tok || D.phase !== "waiting") return;
   const fare = fareFor(trip.km, trip.min, opt.mult);
   D.req = { from, to, opt, km: trip.km, min: trip.min, fare, payout: round2(fare * PAYOUT), p: person(), carPos, pickMin: pickup.min, trip, pickup };
@@ -493,8 +562,14 @@ function finishRide() {
 
 function driverAct(a) {
   switch (a) {
-    case "go": D.phase = "waiting"; driverView(); scheduleRequest(); break;
-    case "stop": clearTimers(); clearInterval(D.cd); D.tok++; D.req = null; D.phase = "off"; clearMapTrip(); driverView(); break;
+    case "geo": S.geo = !S.geo; save(); GEO.err = ""; drawMe(); driverView(); break;
+    case "go":
+      if (S.geo) {
+        D.phase = "locating"; driverView();
+        locate(() => { if (D.phase !== "locating") return; D.phase = "waiting"; driverView(); scheduleRequest(); }, true);
+      } else { D.phase = "waiting"; driverView(); scheduleRequest(); }
+      break;
+    case "stop": clearTimers(); clearInterval(D.cd); D.tok++; D.req = null; stopWatch(); D.phase = "off"; clearMapTrip(); driverView(); break;
     case "decline": declineRequest(); break;
     case "accept": acceptRequest(); break;
     case "start": startTrip(); break;
@@ -508,6 +583,13 @@ function driverAct(a) {
 // ============================================================
 let R = { phase: "form", from: PLACES[0], to: PLACES[3], opt: OPTIONS[0], ride: null, tip: 0, rating: 5, est: null, etas: { eco: 3, comfort: 4, van: 6 }, tok: 0 };
 
+function riderGeoInit() {                            // appelé depuis un geste (changement de mode / bouton)
+  if (!S.geo) return;
+  locate(ok => {
+    if (ok) { buildNear(); if (R.phase === "form") { R.from = ME; R.to = NEAR[1]; riderEstimate(); } }
+    else if (R.phase === "form") riderView();
+  });
+}
 function riderEstimate() {                           // calcule l'itinéraire réel du trajet choisi
   const tok = ++R.tok;
   R.est = null; R.etas = { eco: rint(2, 5), comfort: rint(3, 7), van: rint(5, 9) };
@@ -520,11 +602,12 @@ function riderEstimate() {                           // calcule l'itinéraire r�
 }
 function riderView() {
   const g = R.ride;
-  const placeOpts = sel => PLACES.map((p, i) => `<option value="${i}"${p === sel ? " selected" : ""}>${p.n}</option>`).join("");
+  const placeOpts = sel => plist().map((p, i) => `<option value="${i}"${p === sel ? " selected" : ""}>${p.n}</option>`).join("");
   switch (R.phase) {
     case "form": {
       const e = R.est;
       setSheet(`<h2>Où allez-vous ?</h2>
+        ${S.geo && !GEO.pos ? `<button class="btn ghost" data-act="locate">📍 Me localiser</button>${GEO.err ? `<p class="meta" style="margin:0">${GEO.err}</p>` : ""}` : ""}
         <select id="sel-from" aria-label="Départ">${placeOpts(R.from)}</select>
         <select id="sel-to" aria-label="Destination">${placeOpts(R.to)}</select>
         <p class="meta" style="margin:0">${R.from === R.to ? "Choisissez deux lieux différents." : e ? `${fmtKm(e.km)} km · environ ${e.min} min${e.real ? "" : " (estimation)"}` : "Calcul de l'itinéraire…"}</p>
@@ -583,6 +666,7 @@ function riderDone() {
 }
 function riderAct(a, ds) {
   switch (a) {
+    case "locate": riderGeoInit(); break;
     case "opt": R.opt = OPTIONS.find(o => o.id === ds.id) || R.opt; riderView(); break;
     case "order": riderOrder(); break;
     case "cancel": R.tok++; clearTimers(); stopAnim(); busy = false; R.phase = "form"; clearMapTrip(); updateChrome(); riderEstimate(); break;
@@ -604,8 +688,9 @@ sheet.addEventListener("click", e => {
 });
 sheet.addEventListener("change", e => {
   if (S.mode !== "rider" || R.phase !== "form") return;
-  if (e.target.id === "sel-from") R.from = PLACES[+e.target.value];
-  else if (e.target.id === "sel-to") R.to = PLACES[+e.target.value];
+  const pl = plist();
+  if (e.target.id === "sel-from") R.from = pl[+e.target.value] || R.from;
+  else if (e.target.id === "sel-to") R.to = pl[+e.target.value] || R.to;
   else return;
   riderEstimate();
 });
@@ -616,7 +701,12 @@ document.querySelector(".modes").addEventListener("click", e => {
   S.mode = b.dataset.m; save();
   clearTimers(); clearInterval(D.cd); D.tok++; D.req = null; if (D.phase !== "off") D.phase = "off";
   R.tok++; clearMapTrip(); updateChrome(); render();
-  if (S.mode === "rider") riderEstimate();
+  if (S.mode === "rider") {
+    if (S.geo && !GEO.pos) riderGeoInit();
+    else if (useMe()) { if (!NEAR.length) buildNear(); const pl = plist(); if (!pl.includes(R.from)) R.from = ME; if (!pl.includes(R.to)) R.to = NEAR[1]; }
+    riderEstimate();
+  }
+  else { stopWatch(); }
 });
 $("#speed").addEventListener("click", e => {
   const b = e.target.closest("button[data-s]");

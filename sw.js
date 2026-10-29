@@ -1,5 +1,5 @@
 // Service worker minimal : l'app fonctionne hors-ligne après la première visite (le fond de plan a besoin d'internet).
-const CACHE = "vroum-v4";
+const CACHE = "vroum-v5";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-180.png",
   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css",
   "fonts/Inter-Regular.woff2", "fonts/Inter-SemiBold.woff2", "fonts/Inter-Bold.woff2", "fonts/Inter-ExtraBold.woff2"];

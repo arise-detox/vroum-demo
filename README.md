@@ -17,6 +17,12 @@ Nom, interface, passagers, chauffeurs, lieux et prix sont imaginaires. Elle n'es
 
 **Commun** : vitesse de simulation 1× / 2× / 4×, historique et totaux, sons de notification synthétisés (carillons) et vibrations (désactivables), fonctionne hors-ligne (hors fond de plan), installable sur l'écran d'accueil de l'iPhone ou d'Android.
 
+## Position réelle (facultative)
+
+- Au passage en ligne (chauffeur) ou via « Me localiser » (passager), l'app demande ta position. Elle centre la carte sur toi, suit tes déplacements en direct pendant l'attente de client, et génère les clients et destinations fictifs **autour de toi** (n'importe où où OSRM a des routes).
+- La position n'est ni enregistrée ni envoyée à un serveur de l'app. Seuls les points des trajets (proches de toi) partent vers le service d'itinéraires public OSRM, comme pour tout calcul de route. Les noms de rues des trajets terminés restent dans l'historique de ton appareil (bouton d'effacement disponible).
+- Si tu refuses ou désactives (« Ma position réelle »), l'app utilise les lieux de Paris.
+
 ## Carte et itinéraires réels
 
 - Fond de plan de Paris (OpenStreetMap, rendu en noir et blanc, clair ou sombre selon ton téléphone) affiché avec [Leaflet](https://leafletjs.com) (hébergé dans `vendor/leaflet`).
