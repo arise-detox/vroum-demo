@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; connect-src 'self'">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vroum Démo">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Vroum Démo</title>
+<style>
+:root{--bg:#f3f6f6;--card:#fff;--text:#0f1f1e;--muted:#5b6b6a;--line:#dbe4e3;--brand:#0f766e;--brand2:#f59e0b;--ok:#16a34a;--bad:#dc2626;
+--land:#eaf0ef;--road:#fff;--major:#f9fbfb;--park:#cfe8d5;--water:#bcd9ee;--shadow:0 -6px 24px rgba(0,0,0,.14)}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1413;--card:#15201f;--text:#e6f1f0;--muted:#8fa3a1;--line:#243433;--brand:#2dd4bf;--brand2:#fbbf24;--ok:#4ade80;--bad:#f87171;
+--land:#16221f;--road:#22302d;--major:#2a3a37;--park:#1c3a2b;--water:#1b3a52;--shadow:0 -6px 24px rgba(0,0,0,.5)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:520px;margin:0 auto;position:relative;background:var(--bg)}
+header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
+.brand{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:var(--brand)}
+.demo{display:inline-block;margin-left:6px;font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:99px;background:var(--brand2);color:#1c1300;vertical-align:middle}
+.modes{margin-left:auto;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
+.modes button{border:0;background:none;color:var(--muted);padding:6px 12px;border-radius:99px;font:inherit;font-size:.85rem;font-weight:600}
+.modes button[aria-pressed=true]{background:var(--brand);color:#fff}
+.modes button:disabled{opacity:.5}
+.icon{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:50%;width:36px;height:36px;font-size:1rem}
+.mapwrap{position:relative;flex:1;min-height:180px;overflow:hidden}
+svg#map{width:100%;height:100%;display:block;background:var(--land)}
+.land{fill:var(--land)}.park{fill:var(--park)}.water{fill:none;stroke:var(--water);stroke-width:4;stroke-linecap:round}
+.road{stroke:var(--road);stroke-width:1.1}.road.major{stroke:var(--major);stroke-width:1.9}
+.lbl{font:700 2.7px system-ui,sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--land);stroke-width:.9px;stroke-linejoin:round}
+.pill{position:absolute;top:8px;left:10px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.speed{position:absolute;top:8px;right:10px;display:flex;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px}
+.speed button{border:0;background:none;color:var(--muted);padding:3px 9px;border-radius:99px;font:inherit;font-size:.78rem;font-weight:700}
+.speed button[aria-pressed=true]{background:var(--brand);color:#fff}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding:16px 16px calc(env(safe-area-inset-bottom) + 14px);position:relative;z-index:2}
+.sheet h2{margin:0 0 2px;font-size:1.2rem}
+.sub{margin:0 0 12px;color:var(--muted);font-size:.9rem}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;font:inherit;font-weight:700;font-size:1rem;background:var(--brand);color:#fff;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.warn{background:var(--brand2);color:#1c1300}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:10px;margin-top:12px}.row>*{flex:1}
+.who{display:flex;align-items:center;gap:10px;font-weight:700}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+.fare{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;margin:6px 0 0}
+.meta{color:var(--muted);font-size:.88rem}
+.route2{margin:8px 0;padding:8px 10px;background:var(--bg);border-radius:10px;font-size:.92rem}
+.bar{height:5px;background:var(--line);border-radius:9px;overflow:hidden;margin-bottom:10px}
+.bar i{display:block;height:100%;background:var(--brand2);transition:width 1s linear}
+.prog{height:6px;background:var(--line);border-radius:9px;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:var(--brand);width:0}
+.radar{width:54px;height:54px;border-radius:50%;margin:2px auto 10px;background:radial-gradient(circle,var(--brand) 0 18%,transparent 20%);position:relative}
+.radar::before,.radar::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--brand);animation:ping 1.8s infinite;opacity:0}
+.radar::after{animation-delay:.9s}
+@keyframes ping{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+.stars{display:flex;justify-content:center;gap:4px;margin:8px 0}
+.stars button{border:0;background:none;font-size:2rem;color:var(--line);padding:0 2px}
+.stars button.on{color:var(--brand2)}
+.opts{display:grid;gap:8px;margin:8px 0}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:inherit;text-align:left;width:100%}
+.opt[aria-pressed=true]{border-color:var(--brand)}
+.opt b{margin-left:auto}
+.opt small{display:block;color:var(--muted)}
+select{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;margin-bottom:8px}
+.tips{display:flex;gap:8px;justify-content:center;margin:6px 0}
+.tips button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:99px;padding:6px 14px;font:inherit;font-weight:600}
+.tips button[aria-pressed=true]{background:var(--brand);color:#fff;border-color:var(--brand)}
+.legal{margin:10px 0 0;text-align:center;color:var(--muted);font-size:.72rem}
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:10;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px 20px;max-width:520px;margin:0 auto}
+.overlay h2{margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.k small{display:block;color:var(--muted);font-size:.78rem}.k b{font-size:1.25rem}
+.h{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-top:1px solid var(--line);font-size:.92rem}
+.h:first-child{border-top:0}.h .meta{grid-column:1}.h b{grid-row:1/3;grid-column:2;align-self:center}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="brand">Vroum<span class="demo">DÉMO · courses fictives</span></span>
+    <div class="modes" role="group" aria-label="Mode">
+      <button data-m="driver" aria-pressed="true">Chauffeur</button>
+      <button data-m="rider" aria-pressed="false">Passager</button>
+    </div>
+    <button class="icon" id="hist-btn" aria-label="Historique">📋</button>
+  </header>
+  <div class="mapwrap">
+    <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Carte schématique fictive"></svg>
+    <div class="pill" id="pill"></div>
+    <div class="speed" id="speed" role="group" aria-label="Vitesse de simulation">
+      <button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
+    </div>
+  </div>
+  <section class="sheet" id="sheet" aria-live="polite"></section>
+</div>
+
+<div class="overlay" id="hist" hidden>
+  <h2>Historique</h2>
+  <div class="grid" id="hist-stats"></div>
+  <div class="card" id="hist-list"></div>
+  <div class="row">
+    <button class="btn ghost" id="sound-btn"></button>
+    <button class="btn ghost" id="reset-btn">Effacer l'historique</button>
+  </div>
+  <div class="row"><button class="btn" id="hist-close">Fermer</button></div>
+  <p class="legal">Vroum est une application de démonstration : les courses, passagers, chauffeurs et prix sont fictifs. Aucun paiement, aucune vraie réservation.</p>
+</div>
+
+<script>
+"use strict";
+// ============================================================
+//  Vroum Démo — simulateur de VTC fictif (aucune vraie course)
+// ============================================================
+const $ = s => document.querySelector(s);
+const KEY = "vroum-demo-v1";
+const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+const rnd = (a, b) => a + Math.random() * (b - a);
+const rint = (a, b) => Math.floor(rnd(a, b + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const round2 = n => Math.round(n * 100) / 100;
+const KM_PER_UNIT = 0.15;      // 1 unité de carte = 150 m
+const MS_PER_UNIT = 220;       // durée de la simulation (à vitesse 1×)
+const PAYOUT = 0.75;           // part du chauffeur (fictive)
+
+const PLACES = [
+  { n: "Gare de Lyon", x: 70, y: 60 }, { n: "Place de la Bastille", x: 60, y: 50 }, { n: "Tour Eiffel", x: 20, y: 60 },
+  { n: "Opéra", x: 40, y: 30 }, { n: "Gare du Nord", x: 50, y: 10 }, { n: "Montmartre", x: 30, y: 10 },
+  { n: "Louvre", x: 40, y: 50 }, { n: "République", x: 60, y: 30 }, { n: "Notre-Dame", x: 50, y: 60 },
+  { n: "Montparnasse", x: 30, y: 80 }, { n: "Bercy", x: 80, y: 80 }, { n: "La Défense", x: 10, y: 20 },
+  { n: "Aéroport (démo)", x: 50, y: 90 }, { n: "Belleville", x: 80, y: 30 }
+];
+const FIRST = ["Camille", "Noah", "Inès", "Lucas", "Léa", "Hugo", "Sarah", "Yanis", "Manon", "Karim", "Emma", "Tom", "Jade", "Nora", "Enzo", "Lina"];
+const LAST = "ABCDEFGHJKLMNPRSTV".split("");
+const CARS = ["Berline électrique grise", "Compacte hybride bleue", "Monospace blanc", "Berline noire", "Citadine verte"];
+const OPTIONS = [
+  { id: "eco", n: "Éco", mult: 1, seats: "1-4 places", icon: "🚗" },
+  { id: "comfort", n: "Confort", mult: 1.3, seats: "véhicule récent", icon: "🚙" },
+  { id: "van", n: "Van", mult: 1.7, seats: "jusqu'à 6 places", icon: "🚐" }
+];
+
+// ---------- Persistance ----------
+let S = loadState();
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.history)) return { history: s.history, speed: [1, 2, 4].includes(s.speed) ? s.speed : 1, mode: s.mode === "rider" ? "rider" : "driver", sound: s.sound !== false };
+  } catch {}
+  return { history: [], speed: 1, mode: "driver", sound: true };
+}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// ---------- Géométrie & tarifs (fonctions pures) ----------
+function makeRoute(a, b, vFirst) {
+  const pts = [{ x: a.x, y: a.y }];
+  if (a.x !== b.x && a.y !== b.y) pts.push(vFirst ? { x: a.x, y: b.y } : { x: b.x, y: a.y });
+  pts.push({ x: b.x, y: b.y });
+  return pts;
+}
+const segLen = (p, q) => Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
+function pathLen(pts) { let l = 0; for (let i = 1; i < pts.length; i++) l += segLen(pts[i - 1], pts[i]); return l; }
+function posAt(pts, d) {            // position et cap après d unités parcourues
+  let rest = d;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1], q = pts[i], L = segLen(p, q);
+    if (rest <= L || i === pts.length - 1) {
+      const t = L ? Math.min(1, rest / L) : 1;
+      return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t, ang: Math.atan2(q.x - p.x, -(q.y - p.y)) * 180 / Math.PI };
+    }
+    rest -= L;
+  }
+  return { x: pts[0].x, y: pts[0].y, ang: 0 };
+}
+const unitsToKm = u => round2(u * KM_PER_UNIT);
+const kmToMin = km => Math.max(2, Math.round(km / 26 * 60));     // ~26 km/h en ville
+function fareFor(km, mult = 1) { return round2(Math.max(5, (2 + km * 0.95 + kmToMin(km) * 0.3) * mult)); }
+const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+function randomCorner(near, minD, maxD) {         // intersection aléatoire à une certaine distance
+  for (let i = 0; i < 40; i++) {
+    const p = { x: rint(1, 9) * 10, y: rint(1, 9) * 10 };
+    const d = dist(p, near);
+    if (d >= minD && d <= maxD) return p;
+  }
+  return { x: Math.max(10, near.x - 30), y: near.y };
+}
+function randomPlacePair() {
+  const a = pick(PLACES);
+  let b; do { b = pick(PLACES); } while (b === a || dist(a, b) < 30);
+  return [a, b];
+}
+const person = () => ({ name: `${pick(FIRST)} ${pick(LAST)}.`, rating: round2(rnd(4.5, 5)) });
+
+// ---------- Carte ----------
+function drawMap() {
+  let s = '<rect width="100" height="100" class="land"/>';
+  s += '<rect x="12" y="32" width="16" height="16" rx="2" class="park"/><rect x="62" y="66" width="22" height="12" rx="2" class="park"/><rect x="72" y="6" width="14" height="12" rx="2" class="park"/>';
+  s += '<path d="M0 68 C 22 58, 40 78, 64 64 S 100 54 100 58" class="water"/>';
+  for (let i = 0; i <= 100; i += 10) {
+    const c = i % 30 === 0 ? "road major" : "road";
+    s += `<line x1="${i}" y1="0" x2="${i}" y2="100" class="${c}"/><line x1="0" y1="${i}" x2="100" y2="${i}" class="${c}"/>`;
+  }
+  s += '<g id="route"></g><g id="pins"></g>';
+  s += '<g id="carg" visibility="hidden"><rect x="-1.4" y="-2.4" width="2.8" height="4.8" rx="1.1" fill="#0f766e" stroke="#fff" stroke-width=".45"/><rect x="-.85" y="-1.5" width="1.7" height="1.3" rx=".35" fill="#b6f3ea"/></g>';
+  $("#map").innerHTML = s;
+}
+function setCar(p) { const c = $("#carg"); c.setAttribute("visibility", "visible"); c.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${p.ang})`); }
+function showRoute(pts) {
+  $("#route").innerHTML = pts ? `<polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/><polyline points="${pts.map(p => p.x + "," + p.y).join(" ")}" fill="none" stroke="#0f766e" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>` : "";
+}
+function showPins(from, to) {
+  let s = "";
+  if (from) s += `<circle cx="${from.x}" cy="${from.y}" r="2.3" fill="#0f766e" stroke="#fff" stroke-width=".6"/><circle cx="${from.x}" cy="${from.y}" r=".8" fill="#fff"/><text class="lbl" x="${from.x + 3}" y="${from.y - 2}">${from.n}</text>`;
+  if (to) s += `<rect x="${to.x - 2.1}" y="${to.y - 2.1}" width="4.2" height="4.2" rx=".8" fill="#f59e0b" stroke="#fff" stroke-width=".6"/><text class="lbl" x="${to.x + 3}" y="${to.y - 2}">${to.n}</text>`;
+  $("#pins").innerHTML = s;
+}
+function clearMapTrip() { showRoute(null); showPins(null, null); $("#carg").setAttribute("visibility", "hidden"); }
+
+// ---------- Animation d'un déplacement ----------
+let anim = null;
+function stopAnim() { if (anim) { anim.stop = true; cancelAnimationFrame(anim.raf); anim = null; } }
+function drive(pts, onTick, onDone) {
+  stopAnim();
+  const len = pathLen(pts), a = (anim = { stop: false, raf: 0 });
+  let d = 0, last = performance.now();
+  setCar(posAt(pts, 0));
+  const step = now => {
+    if (a.stop) return;
+    d += Math.min(now - last, 100) * S.speed / MS_PER_UNIT;     // un onglet en arrière-plan ne fait pas « sauter » la voiture
+    last = now;
+    if (d >= len) { setCar(posAt(pts, len)); onTick && onTick(1); anim = null; onDone && onDone(); return; }
+    setCar(posAt(pts, d)); onTick && onTick(d / len);
+    a.raf = requestAnimationFrame(step);
+  };
+  a.raf = requestAnimationFrame(step);
+}
+
+// ---------- Son ----------
+let actx = null;
+function beep(freq = 740, ms = 140, twice = false) {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const go = t0 => { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = freq; g.gain.value = .06; o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + ms / 1000); };
+    go(actx.currentTime); if (twice) go(actx.currentTime + ms / 1000 + .08);
+    if (navigator.vibrate) navigator.vibrate(twice ? [120, 80, 120] : 120);
+  } catch {}
+}
+
+// ---------- Interface commune ----------
+const sheet = $("#sheet");
+const setSheet = html => { sheet.innerHTML = html + '<p class="legal">Démo : courses, personnes et prix fictifs.</p>'; };
+const stars = cur => `<div class="stars" role="group" aria-label="Note">${[1, 2, 3, 4, 5].map(i => `<button data-act="star" data-v="${i}" class="${i <= cur ? "on" : ""}" aria-label="${i} étoile${i > 1 ? "s" : ""}">★</button>`).join("")}</div>`;
+const initials = n => n.split(" ")[0].slice(0, 1);
+let timers = [];
+const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+let busy = false;       // une course est en cours : on ne change pas de mode
+
+function updatePill() {
+  const today = dayKey();
+  if (S.mode === "driver") {
+    const l = S.history.filter(h => h.role === "driver" && h.date === today);
+    $("#pill").textContent = `Aujourd'hui : ${eur.format(round2(l.reduce((s, h) => s + h.net, 0)))} · ${l.length} course${l.length > 1 ? "s" : ""}`;
+  } else {
+    const l = S.history.filter(h => h.role === "rider" && h.date === today);
+    $("#pill").textContent = `Dépensé aujourd'hui : ${eur.format(round2(l.reduce((s, h) => s + h.net, 0)))}`;
+  }
+}
+function updateChrome() {
+  document.querySelectorAll(".modes button").forEach(b => { b.setAttribute("aria-pressed", b.dataset.m === S.mode); b.disabled = busy && b.dataset.m !== S.mode; });
+  document.querySelectorAll(".speed button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.s === S.speed));
+  updatePill();
+}
+
+// ============================================================
+//  MODE CHAUFFEUR
+// ============================================================
+let D = { phase: "off", req: null, ride: null, rating: 5, left: 0, cd: null, tripKm: 0 };
+
+function driverView() {
+  const r = D.req, g = D.ride;
+  switch (D.phase) {
+    case "off":
+      setSheet(`<h2>Vous êtes hors ligne</h2><p class="sub">Passez en ligne pour recevoir des courses fictives.</p><button class="btn" data-act="go">Se connecter</button>`); break;
+    case "waiting":
+      setSheet(`<div class="radar"></div><h2 style="text-align:center">Recherche de courses…</h2><p class="sub" style="text-align:center">Vous êtes en ligne, une demande va arriver.</p><button class="btn ghost" data-act="stop">Se déconnecter</button>`); break;
+    case "request":
+      setSheet(`<div class="bar"><i id="cd" style="width:${D.left / 15 * 100}%"></i></div>
+        <div class="who"><span class="avatar">${initials(r.p.name)}</span><span>${r.p.name} <span class="meta">★ ${r.p.rating}</span></span><span class="meta" style="margin-left:auto">${r.opt.n}</span></div>
+        <div class="fare">${eur.format(r.payout)}</div>
+        <div class="meta">${r.km} km · ${r.min} min · prise en charge dans ${r.pickMin} min</div>
+        <div class="route2"><b>${r.from.n}</b><br>→ <b>${r.to.n}</b></div>
+        <div class="row"><button class="btn ghost" data-act="decline">Refuser</button><button class="btn" data-act="accept">Accepter</button></div>`); break;
+    case "toPickup":
+      setSheet(`<h2>En route vers ${g.from.n}</h2><p class="sub">${g.p.name} · ★ ${g.p.rating}</p><div class="prog"><i id="pg"></i></div><p class="meta" id="eta">Arrivée dans ${g.pickMin} min</p>`); break;
+    case "atPickup":
+      setSheet(`<h2>Vous êtes arrivé</h2><p class="sub">${g.p.name} monte à bord…</p><button class="btn" data-act="start">Démarrer la course</button>`); break;
+    case "trip":
+      setSheet(`<div class="who"><span class="avatar">${initials(g.p.name)}</span><span>Course en cours</span></div>
+        <div class="fare" id="live">${eur.format(0)}</div><div class="meta">vers <b>${g.to.n}</b></div>
+        <div class="prog"><i id="pg"></i></div><p class="meta" id="eta">${g.min} min restantes</p>`); break;
+    case "atDest":
+      setSheet(`<h2>Destination atteinte</h2><p class="sub">${g.to.n}</p><button class="btn warn" data-act="end">Terminer la course</button>`); break;
+    case "summary":
+      setSheet(`<h2 style="text-align:center">Course terminée</h2><div class="fare" style="text-align:center">${eur.format(g.net)}</div>
+        <p class="sub" style="text-align:center">${eur.format(g.payoutBase)} de course${g.tip ? ` + ${eur.format(g.tip)} de pourboire` : ""} · ${g.km} km · ${g.min} min</p>
+        <p class="meta" style="text-align:center;margin:0">Notez ${g.p.name}</p>${stars(D.rating)}
+        <button class="btn" data-act="next">Continuer</button>`); break;
+  }
+}
+
+function scheduleRequest() {
+  clearTimers();
+  later(newRequest, rint(2000, 5000) / S.speed);
+}
+function newRequest() {
+  const [from, to] = randomPlacePair();
+  const opt = pick([OPTIONS[0], OPTIONS[0], OPTIONS[1], OPTIONS[2]]);
+  const km = unitsToKm(dist(from, to)), fare = fareFor(km, opt.mult);
+  const carPos = randomCorner(from, 20, 60);
+  D.req = { from, to, opt, km, min: kmToMin(km), fare, payout: round2(fare * PAYOUT), p: person(), carPos, pickMin: kmToMin(unitsToKm(dist(carPos, from))) };
+  D.phase = "request"; D.left = 15;
+  beep(880, 130, true); driverView();
+  D.cd = setInterval(() => {
+    D.left--;
+    const el = $("#cd");
+    if (el) el.style.width = (D.left / 15 * 100) + "%";
+    if (D.left <= 0) { clearInterval(D.cd); declineRequest(); }
+  }, 1000);
+}
+function declineRequest() {
+  clearInterval(D.cd); D.req = null; D.phase = "waiting"; driverView(); scheduleRequest();
+}
+function acceptRequest() {
+  clearInterval(D.cd);
+  const r = D.req; D.req = null; busy = true; updateChrome();
+  D.ride = { ...r, tip: 0 };
+  D.phase = "toPickup"; driverView();
+  showPins(r.from, null);
+  const pts = makeRoute(r.carPos, r.from, Math.random() < .5);
+  showRoute(pts);
+  drive(pts, f => {
+    const pg = $("#pg"), eta = $("#eta");
+    if (pg) pg.style.width = (f * 100) + "%";
+    if (eta) eta.textContent = `Arrivée dans ${Math.max(0, Math.ceil(r.pickMin * (1 - f)))} min`;
+  }, () => { D.phase = "atPickup"; beep(660, 160); driverView(); });
+}
+function startTrip() {
+  const g = D.ride;
+  D.phase = "trip"; driverView(); showPins(g.from, g.to);
+  const pts = makeRoute(g.from, g.to, Math.random() < .5); showRoute(pts);
+  drive(pts, f => {
+    const pg = $("#pg"), eta = $("#eta"), live = $("#live");
+    if (pg) pg.style.width = (f * 100) + "%";
+    if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
+    if (live) live.textContent = eur.format(round2(g.payout * f));
+  }, () => { D.phase = "atDest"; beep(660, 160); driverView(); });
+}
+function endTrip() {
+  const g = D.ride;
+  g.tip = Math.random() < .45 ? pick([1, 1, 2, 2, 3, 5]) : 0;
+  g.payoutBase = g.payout; g.net = round2(g.payout + g.tip);
+  D.rating = 5; D.phase = "summary"; beep(990, 200, true); driverView();
+}
+function finishRide() {
+  const g = D.ride;
+  S.history.unshift({ id: Date.now(), role: "driver", date: dayKey(), from: g.from.n, to: g.to.n, km: g.km, min: g.min, net: g.net, tip: g.tip, party: g.p.name, rating: D.rating });
+  S.history = S.history.slice(0, 200); save();
+  D.ride = null; busy = false; clearMapTrip(); updateChrome();
+  D.phase = "waiting"; driverView(); scheduleRequest();
+}
+
+function driverAct(a) {
+  switch (a) {
+    case "go": D.phase = "waiting"; driverView(); scheduleRequest(); break;
+    case "stop": clearTimers(); clearInterval(D.cd); D.phase = "off"; driverView(); break;
+    case "decline": declineRequest(); break;
+    case "accept": acceptRequest(); break;
+    case "start": startTrip(); break;
+    case "end": endTrip(); break;
+    case "next": finishRide(); break;
+  }
+}
+
+// ============================================================
+//  MODE PASSAGER
+// ============================================================
+let R = { phase: "form", from: PLACES[0], to: PLACES[3], opt: OPTIONS[0], ride: null, tip: 0, rating: 5 };
+
+function riderOptions() {
+  const km = unitsToKm(dist(R.from, R.to));
+  return OPTIONS.map(o => ({ ...o, price: fareFor(km, o.mult), eta: rint(2, 7) }));
+}
+function riderView() {
+  const g = R.ride;
+  const placeOpts = sel => PLACES.map((p, i) => `<option value="${i}"${p === sel ? " selected" : ""}>${p.n}</option>`).join("");
+  switch (R.phase) {
+    case "form": {
+      const km = unitsToKm(dist(R.from, R.to));
+      const opts = (R._opts = R._opts || riderOptions());
+      setSheet(`<h2>Où allez-vous ?</h2>
+        <select id="sel-from" aria-label="Départ">${placeOpts(R.from)}</select>
+        <select id="sel-to" aria-label="Destination">${placeOpts(R.to)}</select>
+        <p class="meta" style="margin:0">${km} km · environ ${kmToMin(km)} min</p>
+        <div class="opts">${opts.map(o => `<button class="opt" data-act="opt" data-id="${o.id}" aria-pressed="${o.id === R.opt.id}"><span style="font-size:1.5rem">${o.icon}</span><span>${o.n}<small>${o.seats} · ${o.eta} min</small></span><b>${eur.format(o.price)}</b></button>`).join("")}</div>
+        <button class="btn" data-act="order"${R.from === R.to ? " disabled" : ""}>Commander ${R.opt.n}</button>`);
+      break;
+    }
+    case "searching":
+      setSheet(`<div class="radar"></div><h2 style="text-align:center">Recherche d'un chauffeur…</h2><p class="sub" style="text-align:center">${R.from.n} → ${R.to.n}</p><button class="btn ghost" data-act="cancel">Annuler</button>`); break;
+    case "coming":
+      setSheet(`<div class="who"><span class="avatar">${initials(g.d.name)}</span><span>${g.d.name} <span class="meta">★ ${g.d.rating}</span><br><span class="meta">${g.car} · ${g.plate}</span></span></div>
+        <div class="prog"><i id="pg"></i></div><p class="meta" id="eta">Arrive dans ${g.pickMin} min</p>`); break;
+    case "arrived":
+      setSheet(`<h2>Votre chauffeur est arrivé</h2><p class="sub">${g.d.name} · ${g.car} · ${g.plate}</p><button class="btn" data-act="board">Je suis monté(e)</button>`); break;
+    case "trip":
+      setSheet(`<div class="who"><span class="avatar">${initials(g.d.name)}</span><span>En route vers ${R.to.n}</span></div>
+        <div class="prog"><i id="pg"></i></div><p class="meta" id="eta">${g.min} min restantes</p><div class="fare">${eur.format(g.price)}</div>`); break;
+    case "summary":
+      setSheet(`<h2 style="text-align:center">Vous êtes arrivé(e)</h2><div class="fare" style="text-align:center">${eur.format(round2(g.price + R.tip))}</div>
+        <p class="sub" style="text-align:center">${eur.format(g.price)} de course${R.tip ? ` + ${eur.format(R.tip)} de pourboire` : ""} · ${g.km} km</p>
+        <p class="meta" style="text-align:center;margin:0">Notez ${g.d.name}</p>${stars(R.rating)}
+        <div class="tips" role="group" aria-label="Pourboire">${[0, 1, 2, 5].map(t => `<button data-act="tip" data-v="${t}" aria-pressed="${R.tip === t}">${t ? eur.format(t) : "Aucun"}</button>`).join("")}</div>
+        <button class="btn" data-act="done">Terminer</button>`); break;
+  }
+}
+function riderOrder() {
+  busy = true; updateChrome();
+  R.phase = "searching"; riderView(); clearTimers();
+  showPins(R.from, R.to);
+  later(() => {
+    const km = unitsToKm(dist(R.from, R.to)), opt = R.opt;
+    const carPos = randomCorner(R.from, 20, 60);
+    R.ride = { d: person(), car: pick(CARS), plate: `DM-${rint(100, 999)}-OK`, km, min: kmToMin(km), price: fareFor(km, opt.mult), carPos, pickMin: kmToMin(unitsToKm(dist(carPos, R.from))) };
+    R.phase = "coming"; beep(880, 130, true); riderView();
+    const pts = makeRoute(carPos, R.from, Math.random() < .5); showRoute(pts);
+    drive(pts, f => {
+      const pg = $("#pg"), eta = $("#eta");
+      if (pg) pg.style.width = (f * 100) + "%";
+      if (eta) eta.textContent = `Arrive dans ${Math.max(0, Math.ceil(R.ride.pickMin * (1 - f)))} min`;
+    }, () => { R.phase = "arrived"; beep(660, 160); riderView(); });
+  }, rint(2000, 3500) / S.speed);
+}
+function riderBoard() {
+  const g = R.ride;
+  R.phase = "trip"; riderView(); showPins(R.from, R.to);
+  const pts = makeRoute(R.from, R.to, Math.random() < .5); showRoute(pts);
+  drive(pts, f => {
+    const pg = $("#pg"), eta = $("#eta");
+    if (pg) pg.style.width = (f * 100) + "%";
+    if (eta) eta.textContent = `${Math.max(0, Math.ceil(g.min * (1 - f)))} min restantes`;
+  }, () => { R.tip = 0; R.rating = 5; R.phase = "summary"; beep(990, 200, true); riderView(); });
+}
+function riderDone() {
+  const g = R.ride;
+  S.history.unshift({ id: Date.now(), role: "rider", date: dayKey(), from: R.from.n, to: R.to.n, km: g.km, min: g.min, net: round2(g.price + R.tip), tip: R.tip, party: g.d.name, rating: R.rating });
+  S.history = S.history.slice(0, 200); save();
+  R.ride = null; R._opts = null; R.phase = "form"; busy = false; clearMapTrip(); updateChrome(); riderView();
+}
+function riderAct(a, ds) {
+  switch (a) {
+    case "opt": R.opt = OPTIONS.find(o => o.id === ds.id) || R.opt; riderView(); break;
+    case "order": riderOrder(); break;
+    case "cancel": clearTimers(); busy = false; R.phase = "form"; clearMapTrip(); updateChrome(); riderView(); break;
+    case "board": riderBoard(); break;
+    case "tip": R.tip = +ds.v; riderView(); break;
+    case "done": riderDone(); break;
+  }
+}
+
+// ============================================================
+//  Événements
+// ============================================================
+sheet.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const a = b.dataset.act;
+  if (a === "star") { if (S.mode === "driver") D.rating = +b.dataset.v; else R.rating = +b.dataset.v; render(); return; }
+  if (S.mode === "driver") driverAct(a); else riderAct(a, b.dataset);
+});
+sheet.addEventListener("change", e => {
+  if (S.mode !== "rider" || R.phase !== "form") return;
+  if (e.target.id === "sel-from") R.from = PLACES[+e.target.value];
+  if (e.target.id === "sel-to") R.to = PLACES[+e.target.value];
+  R._opts = null; riderView();
+});
+
+document.querySelector(".modes").addEventListener("click", e => {
+  const b = e.target.closest("button[data-m]");
+  if (!b || b.disabled || b.dataset.m === S.mode) return;
+  S.mode = b.dataset.m; save();
+  if (S.mode === "rider") { clearTimers(); clearInterval(D.cd); if (D.phase !== "off") D.phase = "off"; }
+  clearMapTrip(); updateChrome(); render();
+});
+$("#speed").addEventListener("click", e => {
+  const b = e.target.closest("button[data-s]");
+  if (!b) return;
+  S.speed = +b.dataset.s; save(); updateChrome();
+});
+
+function render() { if (S.mode === "driver") driverView(); else riderView(); updateChrome(); }
+
+// Historique
+function renderHistory() {
+  const dr = S.history.filter(h => h.role === "driver"), ri = S.history.filter(h => h.role === "rider");
+  const sum = l => round2(l.reduce((s, h) => s + h.net, 0));
+  $("#hist-stats").innerHTML = `<div class="card k"><small>Gains chauffeur (fictifs)</small><b>${eur.format(sum(dr))}</b><small>${dr.length} course${dr.length > 1 ? "s" : ""}</small></div>
+    <div class="card k"><small>Dépenses passager (fictives)</small><b>${eur.format(sum(ri))}</b><small>${ri.length} course${ri.length > 1 ? "s" : ""}</small></div>`;
+  $("#hist-list").innerHTML = S.history.length ? S.history.slice(0, 60).map(h => `<div class="h"><span>${h.role === "driver" ? "🚗" : "🧍"} ${h.from} → ${h.to}</span><b>${eur.format(h.net)}</b><span class="meta">${h.date.split("-").reverse().join("/")} · ${h.km} km · ${h.min} min · ${h.party} · ${"★".repeat(h.rating)}</span></div>`).join("") : '<p class="meta">Aucune course pour l\'instant.</p>';
+  $("#sound-btn").textContent = S.sound ? "🔊 Son activé" : "🔇 Son coupé";
+}
+$("#hist-btn").onclick = () => { renderHistory(); $("#hist").hidden = false; };
+$("#hist-close").onclick = () => { $("#hist").hidden = true; updatePill(); };
+$("#sound-btn").onclick = () => { S.sound = !S.sound; save(); renderHistory(); };
+$("#reset-btn").onclick = () => { if (confirm("Effacer tout l'historique de démonstration ?")) { S.history = []; save(); renderHistory(); updatePill(); } };
+
+// ---------- Démarrage ----------
+drawMap();
+render();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
