@@ -19,11 +19,11 @@ Nom, interface, passagers, chauffeurs, lieux et prix sont imaginaires. Elle n'es
 
 ## Carte et itinéraires réels
 
-- Fond de plan de Paris (OpenStreetMap via CARTO, clair ou sombre selon ton téléphone) affiché avec [Leaflet](https://leafletjs.com) (hébergé dans `vendor/leaflet`).
+- Fond de plan de Paris (OpenStreetMap, rendu en noir et blanc, clair ou sombre selon ton téléphone) affiché avec [Leaflet](https://leafletjs.com) (hébergé dans `vendor/leaflet`).
 - Lieux réels (gares, monuments, aéroport d'Orly) et **itinéraires routiers réels** calculés par le service public [OSRM](https://project-osrm.org) : distances, durées et prix des courses en découlent, la voiture suit la vraie route.
 - Sans internet, les trajets sont estimés à vol d'oiseau et le fond de plan peut manquer ; l'application continue de fonctionner.
 - Police : [Inter](https://rsms.me/inter/) (licence SIL OFL, hébergée dans `fonts/`).
-- Données cartographiques © contributeurs OpenStreetMap, © CARTO. Les services de carte et d'itinéraire gratuits sont prévus pour un usage léger : ne pas s'en servir pour un service réel.
+- Données cartographiques © contributeurs OpenStreetMap. Les services de carte et d'itinéraire gratuits sont prévus pour un usage léger : ne pas s'en servir pour un service réel.
 
 ## Utilisation
 
